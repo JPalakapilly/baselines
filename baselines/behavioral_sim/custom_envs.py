@@ -1,8 +1,10 @@
 import gym
 from gym import spaces
 import numpy as np
-from baselines import utils
-from 
+from baselines.behavioral_sim import utils
+from baselines.behavioral_sim.agents import *
+from baselines.behavioral_sim.reward import Reward
+
 
 class BehavSimEnv(gym.Env):
     """Custom Environment that follows gym interface"""
@@ -15,18 +17,20 @@ class BehavSimEnv(gym.Env):
 
         # Example when using a bounded 12 vector:
         # TODO: Try p.uint8 here 
-        self.action_space = spaces.Box(low=0, high=100, shape=(12,), dtype=np.float32)
-        self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(12,), dtype=np.float32)
+        self.action_space = spaces.Box(low=0, high=100, shape=(24,), dtype=np.float32)
+        self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(24,), dtype=np.float32)
 
         self.one_day = one_day
         self.prices = self._get_prices(one_day)
-        assert self.prices.shape = (365, 12)
+        assert self.prices.shape == (365, 24)
 
         self.player_dict = self._create_agents()
         self.cur_iter = 0
+        self.day = 0
+        print("BehavSimEnv Initialized")
 
 
-    def _get_prices(self, num_timesteps, one_day):
+    def _get_prices(self, one_day):
         all_prices = []
         if one_day:
             #if repeating the same day, then use a random day. 
@@ -65,7 +69,7 @@ class BehavSimEnv(gym.Env):
         # be2 = change_wg_to_diff(baseline_energy2)
         # be3 = change_wg_to_diff(baseline_energy3)
 
-        players_dict = {}
+        player_dict = {}
 
         # I dont trust the data at all
         # helper comment         [0, 1, 2, 3, 4, 5,  6,  7,  8,   9,  10,  11,  12,  13,  14,  15,  16,  17,  18, 19, 20,  21, 22, 23]
@@ -73,44 +77,50 @@ class BehavSimEnv(gym.Env):
         my_baseline_energy = pd.DataFrame(data={"net_energy_use": sample_energy})
 
 
-        players_dict['player_0'] = DeterministicFunctionPerson(my_baseline_energy, points_multiplier = 100)
-        players_dict['player_1'] = DeterministicFunctionPerson(my_baseline_energy, points_multiplier = 100)
-        players_dict['player_2'] = DeterministicFunctionPerson(my_baseline_energy, points_multiplier = 100)
-        players_dict['player_3'] = DeterministicFunctionPerson(my_baseline_energy, points_multiplier = 100)
-        players_dict['player_4'] = DeterministicFunctionPerson(my_baseline_energy, points_multiplier = 100)
-        players_dict['player_5'] = DeterministicFunctionPerson(my_baseline_energy, points_multiplier = 100)
-        players_dict['player_6'] = DeterministicFunctionPerson(my_baseline_energy, points_multiplier = 100)
-        players_dict['player_7'] = DeterministicFunctionPerson(my_baseline_energy, points_multiplier = 100)
+        player_dict['player_0'] = DeterministicFunctionPerson(my_baseline_energy, points_multiplier = 100)
+        player_dict['player_1'] = DeterministicFunctionPerson(my_baseline_energy, points_multiplier = 100)
+        player_dict['player_2'] = DeterministicFunctionPerson(my_baseline_energy, points_multiplier = 100)
+        player_dict['player_3'] = DeterministicFunctionPerson(my_baseline_energy, points_multiplier = 100)
+        player_dict['player_4'] = DeterministicFunctionPerson(my_baseline_energy, points_multiplier = 100)
+        player_dict['player_5'] = DeterministicFunctionPerson(my_baseline_energy, points_multiplier = 100)
+        player_dict['player_6'] = DeterministicFunctionPerson(my_baseline_energy, points_multiplier = 100)
+        player_dict['player_7'] = DeterministicFunctionPerson(my_baseline_energy, points_multiplier = 100)
 
-        return players_dict
+        return player_dict
 
 
 
     def step(self, action):
+        prev_observation = self.prices[self.day]
+        self.day = (self.day + 1) % 365
         self.cur_iter += 1
-        observation = self.prices[self.cur_iter]
-        if self.cur_iter > 364:
+        observation = self.prices[self.day]
+        #TODO what should be reset frequency?
+        if self.cur_iter > 0:
             done = True
         else:
             done = False
 
-        reward = self._get_reward(action)
-
+        reward = self._get_reward(prev_observation, action)
+        info = {}
+        print("step")
         return observation, reward, done, info
 
-    def _get_reward(action):
+    def _get_reward(self, prev_observation, action):
         total_reward = 0
-        for player_name in self.players_dict:
+        for player_name in self.player_dict:
 
             # get the points output from players
-            player = self.players_dict[player_name]
-            player_energy = player.threshold_exp_response(controllers_points.numpy())
-            energy_dict[player_name] = player_energy
+            player = self.player_dict[player_name]
+            player_energy = player.threshold_exp_response(action)
 
             # get the reward from the player's output
             player_min_demand = player.get_min_demand()
             player_max_demand = player.get_max_demand()
-            player_reward = Reward(player_energy, prices, player_min_demand, player_max_demand)
+            player_reward = Reward(player_energy, prev_observation, player_min_demand, player_max_demand)
+            print(player_energy)
+            print(prev_observation)
+            print(action)
             player_ideal_demands = player_reward.ideal_use_calculation()
             # either distance from ideal or cost distance
             # distance = player_reward.neg_distance_from_ideal(player_ideal_demands)
@@ -123,8 +133,9 @@ class BehavSimEnv(gym.Env):
         return total_reward
 
     def reset(self):
-        self.cur_iter = np.random.randint(365)
-        return prices[self.cur_iter]
+        self.day = np.random.randint(365)
+        self.cur_iter = 0
+        return self.prices[self.cur_iter]
 
     def render(self, mode='human'):
         pass

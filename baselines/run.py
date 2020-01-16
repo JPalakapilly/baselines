@@ -7,7 +7,9 @@ from collections import defaultdict
 import tensorflow as tf
 import numpy as np
 
+from baselines.bench import Monitor
 from baselines.common.vec_env import VecFrameStack, VecNormalize, VecEnv
+from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
 from baselines.common.vec_env.vec_video_recorder import VecVideoRecorder
 from baselines.common.cmd_util import common_arg_parser, parse_unknown_args, make_vec_env, make_env
 from baselines.common.tf_util import get_session
@@ -107,6 +109,10 @@ def build_env(args):
             env = custom_envs.BehavSimEnv()
         elif env_id == "behavioral_sim_one_day":
             env = custom_envs.BehavSimEnv(one_day==True)
+        # wrap it
+        # TODO: specify filename?
+        env = Monitor(env, filename=None, allow_early_resets=True)
+        env = DummyVecEnv([lambda: env])
     else:
         config = tf.ConfigProto(allow_soft_placement=True,
                                intra_op_parallelism_threads=1,
@@ -133,8 +139,9 @@ def get_env_type(args):
     for env in gym.envs.registry.all():
         env_type = env.entry_point.split(':')[0].split('.')[-1]
         _game_envs[env_type].add(env.id)  # This is a set so add is idempotent
-
-    if env_id in _game_envs.keys():
+    if env_id == "behavioral_sim":
+        env_type = "custom"
+    elif env_id in _game_envs.keys():
         env_type = env_id
         env_id = [g for g in _game_envs[env_type]][0]
     else:
@@ -146,8 +153,6 @@ def get_env_type(args):
         if ':' in env_id:
             env_type = re.sub(r':.*', '', env_id)
         assert env_type is not None, 'env_id {} is not recognized in env types'.format(env_id, _game_envs.keys())
-    if env_id == "behavior_sim":
-        env_type = "custom"
 
     return env_type, env_id
 
@@ -219,9 +224,9 @@ def main(args):
     else:
         rank = MPI.COMM_WORLD.Get_rank()
         configure_logger(args.log_path, format_strs=[])
-
+    print("training")
     model, env = train(args, extra_args)
-
+    print("trained")
     if args.save_path is not None and rank == 0:
         save_path = osp.expanduser(args.save_path)
         model.save(save_path)
