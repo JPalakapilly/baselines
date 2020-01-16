@@ -12,6 +12,7 @@ from baselines.common.vec_env.vec_video_recorder import VecVideoRecorder
 from baselines.common.cmd_util import common_arg_parser, parse_unknown_args, make_vec_env, make_env
 from baselines.common.tf_util import get_session
 from baselines import logger
+from baselines.behavioral_sim import custom_envs
 from importlib import import_module
 
 try:
@@ -101,7 +102,11 @@ def build_env(args):
             frame_stack_size = 4
             env = make_vec_env(env_id, env_type, nenv, seed, gamestate=args.gamestate, reward_scale=args.reward_scale)
             env = VecFrameStack(env, frame_stack_size)
-
+    elif env_type == "custom":
+        if env_id == "behavioral_sim":
+            env = custom_envs.BehavSimEnv()
+        elif env_id == "behavioral_sim_one_day":
+            env = custom_envs.BehavSimEnv(one_day==True)
     else:
         config = tf.ConfigProto(allow_soft_placement=True,
                                intra_op_parallelism_threads=1,
@@ -141,6 +146,8 @@ def get_env_type(args):
         if ':' in env_id:
             env_type = re.sub(r':.*', '', env_id)
         assert env_type is not None, 'env_id {} is not recognized in env types'.format(env_id, _game_envs.keys())
+    if env_id == "behavior_sim":
+        env_type = "custom"
 
     return env_type, env_id
 
