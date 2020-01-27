@@ -2,9 +2,14 @@
 
 <img src="data/logo.jpg" width=25% align="right" /> [![Build status](https://travis-ci.org/openai/baselines.svg?branch=master)](https://travis-ci.org/openai/baselines)
 
+# RAISE NOTES
+
+run this command "python -m baselines.run --alg=ppo2 --env=behavioral_sim --num_timesteps=1e4 --save_path="/baselines/behavioral_sim/saved_models" --log_path="~/research/baselines-RAISE/baselines/behavioral_sim/logs/test"
+
+
 # Baselines
 
-OpenAI Baselines is a set of high-quality implementations of reinforcement learning algorithms.
+OpenAI Baselines is a set of high-quality implementations of reinforcement learning algorithms. 
 
 These algorithms will make it easier for the research community to replicate, refine, and identify new ideas, and will create good baselines to build research on top of. Our DQN implementation and its variants are roughly on par with the scores in published papers. We expect they will be used as a base around which new ideas can be added, and as a tool for comparing a new approach against existing ones. 
 

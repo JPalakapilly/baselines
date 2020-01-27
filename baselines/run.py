@@ -1,11 +1,13 @@
 import sys
 import re
 import multiprocessing
+import os
 import os.path as osp
 import gym
 from collections import defaultdict
 import tensorflow as tf
 import numpy as np
+from datetime import datetime
 
 from baselines.bench import Monitor
 from baselines.common.vec_env import VecFrameStack, VecNormalize, VecEnv
@@ -110,8 +112,13 @@ def build_env(args):
         elif env_id == "behavioral_sim_one_day":
             env = custom_envs.BehavSimEnv(one_day==True)
         # wrap it
-        # TODO: specify filename?
-        env = Monitor(env, filename=None, allow_early_resets=True)
+        #timestamp = datetime.now().strftime('_%m_%d_%Y_%H_%M')
+        #log_file = os.path.join(os.getcwd(), "baselines", "behavioral_sim", "logs", timestamp)
+        logger_dir = logger.get_dir()
+        # hard coded mpi_rank and subrank to 0
+        env = Monitor(env,
+                      logger_dir and os.path.join(logger_dir, "0.0"),
+                      allow_early_resets=True)
         env = DummyVecEnv([lambda: env])
     else:
         config = tf.ConfigProto(allow_soft_placement=True,
