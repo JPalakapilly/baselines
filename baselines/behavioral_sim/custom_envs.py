@@ -20,13 +20,13 @@ class BehavSimEnv(gym.Env):
 
         # self.action_space = spaces.Box(low=0, high=100, shape=(24,), dtype=np.float32)
         # self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(24,), dtype=np.float32)
-  
-        self.action_space = spaces.MultiDiscrete([10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10])
-        self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(24,), dtype=np.float32)
+        discrete_space = [10] * 12
+        self.action_space = spaces.MultiDiscrete(discrete_space)
+        self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(12,), dtype=np.float32)
 
         self.one_day = one_day
         self.prices = self._get_prices(one_day)
-        assert self.prices.shape == (365, 24)
+        assert self.prices.shape == (365, 12)
 
         self.player_dict = self._create_agents()
         self.cur_iter = 0
@@ -43,6 +43,9 @@ class BehavSimEnv(gym.Env):
             day = 0
         for i in range(365):
             price = utils.price_signal(day + 1)
+            price = price[8:21]
+            # put a floor on the prices so we don't have negative prices
+            price = np.max(0.01, price)
             all_prices.append(price)
 
             if not one_day:

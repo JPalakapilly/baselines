@@ -4,7 +4,7 @@
 
 # RAISE NOTES
 
-run this command "python -m baselines.run --alg=ppo2 --env=behavioral_sim --num_timesteps=1e4 --save_path="/baselines/behavioral_sim/saved_models" --log_path="~/research/baselines-RAISE/baselines/behavioral_sim/logs/test"
+run this command python -m baselines.run --alg=ppo2 --env=behavioral_sim --num_timesteps=1e4 --save_path="/baselines/behavioral_sim/saved_models" --log_path="~/research/baselines-RAISE/baselines/behavioral_sim/logs/test"
 
 
 # Baselines
