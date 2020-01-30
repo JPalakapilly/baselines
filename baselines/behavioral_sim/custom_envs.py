@@ -17,7 +17,11 @@ class BehavSimEnv(gym.Env):
 
         # Example when using a bounded 24 vector:
         # TODO: move to discrete action space (12 vector with 3 values maybe)
-        self.action_space = spaces.Box(low=0, high=100, shape=(24,), dtype=np.float32)
+
+        # self.action_space = spaces.Box(low=0, high=100, shape=(24,), dtype=np.float32)
+        # self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(24,), dtype=np.float32)
+  
+        self.action_space = spaces.MultiDiscrete([10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10])
         self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(24,), dtype=np.float32)
 
         self.one_day = one_day
@@ -57,7 +61,6 @@ class BehavSimEnv(gym.Env):
 
         # TODO: This needs to be updated
 
-
         # Skipping rows b/c data is converted to PST, which is 16hours behind
         # so first 10 hours are actually 7/29 instead of 7/30
         
@@ -76,7 +79,6 @@ class BehavSimEnv(gym.Env):
         sample_energy = np.array([0, 0, 0, 0, 0, 0, 20, 50, 80, 120, 200, 210, 180, 250, 380, 310, 220, 140, 100, 50, 20,  10,  0,  0])
         my_baseline_energy = pd.DataFrame(data={"net_energy_use": sample_energy})
 
-
         player_dict['player_0'] = DeterministicFunctionPerson(my_baseline_energy, points_multiplier = 100)
         player_dict['player_1'] = DeterministicFunctionPerson(my_baseline_energy, points_multiplier = 100)
         player_dict['player_2'] = DeterministicFunctionPerson(my_baseline_energy, points_multiplier = 100)
@@ -87,8 +89,6 @@ class BehavSimEnv(gym.Env):
         player_dict['player_7'] = DeterministicFunctionPerson(my_baseline_energy, points_multiplier = 100)
 
         return player_dict
-
-
 
     def step(self, action):
         prev_observation = self.prices[self.day]

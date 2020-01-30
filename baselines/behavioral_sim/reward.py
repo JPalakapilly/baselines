@@ -72,10 +72,12 @@ class Reward():
 		returns: 
 			a cost-based distance metric, negated
 		"""
-		current_cost = self.prices*self.energy_use
-		ideal_cost = self.prices*demands
+		current_cost = np.dot(self.prices, self.energy_use)
+		ideal_cost = np.dot(self.prices, demands)
 
-		return (ideal_cost-current_cost).sum()
+		cost_difference = current_cost - ideal_cost
+		
+		return cost_difference
 
 	def scaled_cost_distance_neg(self, demands):
 		"""
@@ -85,15 +87,14 @@ class Reward():
 		returns: 
 			a cost-based distance metric normalized by total ideal cost
 		"""
-		current_cost = self.prices*self.energy_use
-		ideal_cost = self.prices*demands
+		current_cost = np.dot(self.prices, self.energy_use)
+		ideal_cost = np.dot(self.prices, demands)
 
+		cost_difference = current_cost - ideal_cost
+		
+		return cost_difference/ideal_cost
 
-		cost_difference = np.sum(np.minimum(ideal_cost - current_cost, current_cost - ideal_cost))
-		total_ideal_cost = np.sum(ideal_cost)
-
-		return cost_difference/total_ideal_cost
-
+#### if this is huge then we can take the log 
 
 
 
