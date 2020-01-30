@@ -15,8 +15,8 @@ class BehavSimEnv(gym.Env):
         # Define action and observation space
         # They must be gym.spaces objects
 
-        # Example when using a bounded 12 vector:
-        # TODO: Try p.uint8 here 
+        # Example when using a bounded 24 vector:
+        # TODO: move to discrete action space (12 vector with 3 values maybe)
         self.action_space = spaces.Box(low=0, high=100, shape=(24,), dtype=np.float32)
         self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(24,), dtype=np.float32)
 
@@ -124,7 +124,6 @@ class BehavSimEnv(gym.Env):
             player_ideal_demands = player_reward.ideal_use_calculation()
             # either distance from ideal or cost distance
             # distance = player_reward.neg_distance_from_ideal(player_ideal_demands)
-
             # print("Ideal demands: ", player_ideal_demands)
             # print("Actual demands: ", player_energy)
             reward = player_reward.scaled_cost_distance_neg(player_ideal_demands)
