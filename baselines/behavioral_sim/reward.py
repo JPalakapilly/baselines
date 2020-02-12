@@ -75,7 +75,7 @@ class Reward():
 		current_cost = np.dot(self.prices, self.energy_use)
 		ideal_cost = np.dot(self.prices, demands)
 
-		cost_difference = current_cost - ideal_cost
+		cost_difference = ideal_cost - current_cost
 		
 		return cost_difference
 
@@ -90,7 +90,7 @@ class Reward():
 		current_cost = np.dot(self.prices, self.energy_use)
 		ideal_cost = np.dot(self.prices, demands)
 
-		cost_difference = current_cost - ideal_cost
+		cost_difference = ideal_cost - current_cost
 		
 		return cost_difference/ideal_cost
 

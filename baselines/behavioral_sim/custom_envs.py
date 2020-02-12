@@ -20,7 +20,7 @@ class BehavSimEnv(gym.Env):
 
         # self.action_space = spaces.Box(low=0, high=100, shape=(24,), dtype=np.float32)
         # self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(24,), dtype=np.float32)
-        discrete_space = [10] * 12
+        discrete_space = [3] * 12
         self.action_space = spaces.MultiDiscrete(discrete_space)
         self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(12,), dtype=np.float32)
 
@@ -35,20 +35,23 @@ class BehavSimEnv(gym.Env):
 
 
     def _get_prices(self, one_day):
+        
         all_prices = []
         if one_day:
             #if repeating the same day, then use a random day. 
             day = np.random.randint(365)
+            price = utils.price_signal(day + 1)
+            price = np.array(price[8:20])
+            for i in range(365):
+                all_prices.append(price)
         else:
             day = 0
-        for i in range(365):
-            price = utils.price_signal(day + 1)
-            price = price[8:21]
-            # put a floor on the prices so we don't have negative prices
-            price = np.max(0.01, price)
-            all_prices.append(price)
-
-            if not one_day:
+            for i in range(365):  
+                price = utils.price_signal(day + 1)
+                price = np.array(price[8:20])
+                # put a floor on the prices so we don't have negative prices
+                #price = np.maximum([0.01], price)
+                all_prices.append(price)
                 day += 1
 
         return (np.array(all_prices))
@@ -106,7 +109,6 @@ class BehavSimEnv(gym.Env):
 
         reward = self._get_reward(prev_observation, action)
         info = {}
-        print("step")
         return observation, reward, done, info
 
     def _get_reward(self, prev_observation, action):
@@ -121,18 +123,22 @@ class BehavSimEnv(gym.Env):
             player_min_demand = player.get_min_demand()
             player_max_demand = player.get_max_demand()
             player_reward = Reward(player_energy, prev_observation, player_min_demand, player_max_demand)
-            print(player_energy)
-            print(prev_observation)
-            print(action)
+            # print(prev_observation)
+            # print(action)
             player_ideal_demands = player_reward.ideal_use_calculation()
             # either distance from ideal or cost distance
             # distance = player_reward.neg_distance_from_ideal(player_ideal_demands)
             # print("Ideal demands: ", player_ideal_demands)
             # print("Actual demands: ", player_energy)
-            reward = player_reward.scaled_cost_distance_neg(player_ideal_demands)
-            total_reward += reward
+            reward = player_reward.cost_distance(player_ideal_demands)
 
+            total_reward += reward
         return total_reward
+        # if total_reward < 0:
+        #     return -np.log(-total_reward)
+        # else:
+        #     print("weird reward", total_reward)
+        #     return total_reward
 
     def reset(self):
         self.day = np.random.randint(365)

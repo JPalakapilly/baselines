@@ -110,7 +110,7 @@ def build_env(args):
         if env_id == "behavioral_sim":
             env = custom_envs.BehavSimEnv()
         elif env_id == "behavioral_sim_one_day":
-            env = custom_envs.BehavSimEnv(one_day==True)
+            env = custom_envs.BehavSimEnv(one_day=True)
         # wrap it
         #timestamp = datetime.now().strftime('_%m_%d_%Y_%H_%M')
         #log_file = os.path.join(os.getcwd(), "baselines", "behavioral_sim", "logs", timestamp)
@@ -146,7 +146,7 @@ def get_env_type(args):
     for env in gym.envs.registry.all():
         env_type = env.entry_point.split(':')[0].split('.')[-1]
         _game_envs[env_type].add(env.id)  # This is a set so add is idempotent
-    if env_id == "behavioral_sim":
+    if env_id.startswith("behavioral_sim"):
         env_type = "custom"
     elif env_id in _game_envs.keys():
         env_type = env_id
