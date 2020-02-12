@@ -85,7 +85,7 @@ class BehavSimEnv(gym.Env):
         #only grab working hours (8am - 6pm)
         working_hour_energy = sample_energy[8:18]
 
-        my_baseline_energy = pd.DataFrame(data={"net_energy_use": sample_energy})
+        my_baseline_energy = pd.DataFrame(data={"net_energy_use": working_hour_energy})
 
         player_dict['player_0'] = DeterministicFunctionPerson(my_baseline_energy, points_multiplier = 100)
         player_dict['player_1'] = DeterministicFunctionPerson(my_baseline_energy, points_multiplier = 100)
@@ -108,12 +108,16 @@ class BehavSimEnv(gym.Env):
         else:
             done = False
         energy_consumptions = self._simulate_humans(prev_observation, action)
+        if self.energy_in_state:
+            observation = np.concatenate(observation, energy_consumptions["avg"])
         reward = self._get_reward(energy_consumptions)
         info = {}
         return observation, reward, done, info
 
     def _simulate_humans(self, prev_observation, action):
         energy_consumptions = {}
+        total_consumption = np.zeros(10)
+        num_players = 0
         for player_name in self.player_dict:
 
             player = self.player_dict[player_name]
@@ -121,6 +125,9 @@ class BehavSimEnv(gym.Env):
             # CHANGE PLAYER RESPONSE FN HERE
             player_energy = player.threshold_exp_response(action)
             energy_consumptions[player_name] = player_energy
+            total_consumption += player_energy
+            num_players += 1
+        energy_consumptions["avg"] = total_consumption/num_players
         return energy_consumptions
 
 
