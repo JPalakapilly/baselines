@@ -10,23 +10,20 @@ class BehavSimEnv(gym.Env):
     """Custom Environment that follows gym interface"""
     metadata = {'render.modes': ['human']}
 
-    def __init__(self, one_day=False):
+    def __init__(self, one_day=False, energy_in_state=False):
         super(BehavSimEnv, self).__init__()
-        # Define action and observation space
-        # They must be gym.spaces objects
 
-        # Example when using a bounded 24 vector:
-        # TODO: move to discrete action space (12 vector with 3 values maybe)
-
-        # self.action_space = spaces.Box(low=0, high=100, shape=(24,), dtype=np.float32)
-        # self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(24,), dtype=np.float32)
-        discrete_space = [3] * 12
+        discrete_space = [3] * 10
         self.action_space = spaces.MultiDiscrete(discrete_space)
-        self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(12,), dtype=np.float32)
+        if energy_in_state:
+            self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(20,), dtype=np.float32)
+        else:
+            self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(10,), dtype=np.float32)
 
         self.one_day = one_day
+        self.energy_in_state = energy_in_state
         self.prices = self._get_prices(one_day)
-        assert self.prices.shape == (365, 12)
+        assert self.prices.shape == (365, 10)
 
         self.player_dict = self._create_agents()
         self.cur_iter = 0
@@ -38,23 +35,24 @@ class BehavSimEnv(gym.Env):
         
         all_prices = []
         if one_day:
-            #if repeating the same day, then use a random day. 
+            # if repeating the same day, then use a random day. 
+            # SET FIXED DAY HERE
             day = np.random.randint(365)
             price = utils.price_signal(day + 1)
-            price = np.array(price[8:20])
+            price = np.array(price[8:18])
             for i in range(365):
                 all_prices.append(price)
         else:
             day = 0
             for i in range(365):  
                 price = utils.price_signal(day + 1)
-                price = np.array(price[8:20])
+                price = np.array(price[8:18])
                 # put a floor on the prices so we don't have negative prices
-                #price = np.maximum([0.01], price)
+                # price = np.maximum([0.01], price)
                 all_prices.append(price)
                 day += 1
 
-        return (np.array(all_prices))
+        return np.array(all_prices)
 
     def _create_agents(self):
         """Initialize the market agents
@@ -83,6 +81,10 @@ class BehavSimEnv(gym.Env):
         # I dont trust the data at all
         # helper comment         [0, 1, 2, 3, 4, 5,  6,  7,  8,   9,  10,  11,  12,  13,  14,  15,  16,  17,  18, 19, 20,  21, 22, 23]
         sample_energy = np.array([0, 0, 0, 0, 0, 0, 20, 50, 80, 120, 200, 210, 180, 250, 380, 310, 220, 140, 100, 50, 20,  10,  0,  0])
+
+        #only grab working hours (8am - 6pm)
+        working_hour_energy = sample_energy[8:18]
+
         my_baseline_energy = pd.DataFrame(data={"net_energy_use": sample_energy})
 
         player_dict['player_0'] = DeterministicFunctionPerson(my_baseline_energy, points_multiplier = 100)
@@ -101,45 +103,46 @@ class BehavSimEnv(gym.Env):
         self.day = (self.day + 1) % 365
         self.cur_iter += 1
         observation = self.prices[self.day]
-        #TODO what should be reset frequency?
         if self.cur_iter > 0:
             done = True
         else:
             done = False
-
-        reward = self._get_reward(prev_observation, action)
+        energy_consumptions = self._simulate_humans(prev_observation, action)
+        reward = self._get_reward(energy_consumptions)
         info = {}
         return observation, reward, done, info
 
-    def _get_reward(self, prev_observation, action):
-        total_reward = 0
+    def _simulate_humans(self, prev_observation, action):
+        energy_consumptions = {}
         for player_name in self.player_dict:
+
+            player = self.player_dict[player_name]
+            # get the points output from players
+            # CHANGE PLAYER RESPONSE FN HERE
+            player_energy = player.threshold_exp_response(action)
+            energy_consumptions[player_name] = player_energy
+        return energy_consumptions
+
+
+    def _get_reward(self, energy_consumptions):
+        total_reward = 0
+        for player_name in energy_consumptions:
 
             # get the points output from players
             player = self.player_dict[player_name]
-            player_energy = player.threshold_exp_response(action)
 
             # get the reward from the player's output
             player_min_demand = player.get_min_demand()
             player_max_demand = player.get_max_demand()
             player_reward = Reward(player_energy, prev_observation, player_min_demand, player_max_demand)
-            # print(prev_observation)
-            # print(action)
             player_ideal_demands = player_reward.ideal_use_calculation()
             # either distance from ideal or cost distance
             # distance = player_reward.neg_distance_from_ideal(player_ideal_demands)
-            # print("Ideal demands: ", player_ideal_demands)
-            # print("Actual demands: ", player_energy)
-            reward = player_reward.cost_distance(player_ideal_demands)
+            reward = player_reward.scaled_cost_distance(player_ideal_demands)
 
             total_reward += reward
         return total_reward
-        # if total_reward < 0:
-        #     return -np.log(-total_reward)
-        # else:
-        #     print("weird reward", total_reward)
-        #     return total_reward
-
+  
     def reset(self):
         self.day = np.random.randint(365)
         self.cur_iter = 0

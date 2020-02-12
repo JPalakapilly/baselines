@@ -65,7 +65,7 @@ class Person():
 		"""
 
 		# hack here to always grab the first day from the baseline_energy
-		output = np.array(self.baseline_energy)[baseline_day*12:baseline_day*12+12]
+		output = np.array(self.baseline_energy)[baseline_day*24:baseline_day*24+10]
 
 		points_effect = np.array(points * self.points_multiplier)
 		output = output - points_effect
@@ -109,7 +109,7 @@ class FixedDemandPerson(Person):
 
 	def demand_from_points(self, points, baseline_day=0):
 		# hack here to always grab the first day from the baseline_energy
-		output = np.array(self.baseline_energy)[baseline_day*12:baseline_day*12+12]
+		output = np.array(self.baseline_energy)[baseline_day*24:baseline_day*24+10]
 		total_demand = np.sum(output)
 
 
@@ -128,7 +128,7 @@ class FixedDemandPerson(Person):
 
 	def adverserial_linear(self, points, baseline_day=0):
 		# hack here to always grab the first day from the baseline_energy
-		output = np.array(self.baseline_energy)[baseline_day*12:baseline_day*12+12]
+		output = np.array(self.baseline_energy)[baseline_day*24:baseline_day*24+10]
 		total_demand = np.sum(output)
 
 
@@ -170,7 +170,7 @@ class DeterministicFunctionPerson(Person):
 		return points
 
 	def routine_output_transform(self, points_effect, baseline_day=0):
-		output = np.array(self.baseline_energy)[baseline_day*12:baseline_day*12+12]
+		output = np.array(self.baseline_energy)[baseline_day*24:baseline_day*24+10]
 		total_demand = np.sum(output)
 
 		# scale to keep total_demand (almost) constant
