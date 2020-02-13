@@ -15,6 +15,8 @@ class BehavSimEnv(gym.Env):
 
         discrete_space = [3] * 10
         self.action_space = spaces.MultiDiscrete(discrete_space)
+
+        self.action_space = spaces.Box(low=-50, high=50, shape=(10,), dtype=np.float32)
         if energy_in_state:
             self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(20,), dtype=np.float32)
         else:
@@ -37,7 +39,7 @@ class BehavSimEnv(gym.Env):
         if one_day:
             # if repeating the same day, then use a random day. 
             # SET FIXED DAY HERE
-            day = np.random.randint(365)
+            day = 50
             price = utils.price_signal(day + 1)
             price = np.array(price[8:18])
             for i in range(365):
@@ -48,7 +50,7 @@ class BehavSimEnv(gym.Env):
                 price = utils.price_signal(day + 1)
                 price = np.array(price[8:18])
                 # put a floor on the prices so we don't have negative prices
-                # price = np.maximum([0.01], price)
+                price = np.maximum([0.01], price)
                 all_prices.append(price)
                 day += 1
 
@@ -109,8 +111,9 @@ class BehavSimEnv(gym.Env):
             done = False
         energy_consumptions = self._simulate_humans(prev_observation, action)
         if self.energy_in_state:
+            # HACK ALERT. USING AVG ENERGY CONSUMPTION FOR STATE SPACE. this will not work if people are not all the same
             observation = np.concatenate(observation, energy_consumptions["avg"])
-        reward = self._get_reward(energy_consumptions)
+        reward = self._get_reward(prev_observation, energy_consumptions)
         info = {}
         return observation, reward, done, info
 
@@ -119,35 +122,36 @@ class BehavSimEnv(gym.Env):
         total_consumption = np.zeros(10)
         num_players = 0
         for player_name in self.player_dict:
-
-            player = self.player_dict[player_name]
-            # get the points output from players
-            # CHANGE PLAYER RESPONSE FN HERE
-            player_energy = player.threshold_exp_response(action)
-            energy_consumptions[player_name] = player_energy
-            total_consumption += player_energy
-            num_players += 1
-        energy_consumptions["avg"] = total_consumption/num_players
+            if player_name != "avg":
+                player = self.player_dict[player_name]
+                # get the points output from players
+                # CHANGE PLAYER RESPONSE FN HERE
+                player_energy = player.threshold_exp_response(action)
+                energy_consumptions[player_name] = player_energy
+                total_consumption += player_energy
+                num_players += 1
+        energy_consumptions["avg"] = total_consumption / num_players
         return energy_consumptions
 
 
-    def _get_reward(self, energy_consumptions):
+    def _get_reward(self, prev_observation, energy_consumptions):
         total_reward = 0
         for player_name in energy_consumptions:
+            if player_name != "avg":
+                # get the points output from players
+                player = self.player_dict[player_name]
 
-            # get the points output from players
-            player = self.player_dict[player_name]
+                # get the reward from the player's output
+                player_min_demand = player.get_min_demand()
+                player_max_demand = player.get_max_demand()
+                player_energy = energy_consumptions[player_name]
+                player_reward = Reward(player_energy, prev_observation, player_min_demand, player_max_demand)
+                player_ideal_demands = player_reward.ideal_use_calculation()
+                # either distance from ideal or cost distance
+                # distance = player_reward.neg_distance_from_ideal(player_ideal_demands)
+                reward = player_reward.scaled_cost_distance(player_ideal_demands)
 
-            # get the reward from the player's output
-            player_min_demand = player.get_min_demand()
-            player_max_demand = player.get_max_demand()
-            player_reward = Reward(player_energy, prev_observation, player_min_demand, player_max_demand)
-            player_ideal_demands = player_reward.ideal_use_calculation()
-            # either distance from ideal or cost distance
-            # distance = player_reward.neg_distance_from_ideal(player_ideal_demands)
-            reward = player_reward.scaled_cost_distance(player_ideal_demands)
-
-            total_reward += reward
+                total_reward += reward
         return total_reward
   
     def reset(self):
