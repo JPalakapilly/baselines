@@ -111,6 +111,8 @@ def build_env(args):
             env = custom_envs.BehavSimEnv()
         elif env_id == "behavioral_sim_one_day":
             env = custom_envs.BehavSimEnv(one_day=True)
+        elif env_id == "behavioral_sim_hourly":
+            env = custom_envs.HourlySimEnv(one_day=True)
         # wrap it
         #timestamp = datetime.now().strftime('_%m_%d_%Y_%H_%M')
         #log_file = os.path.join(os.getcwd(), "baselines", "behavioral_sim", "logs", timestamp)
