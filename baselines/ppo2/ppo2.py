@@ -143,6 +143,7 @@ def learn(*, network, env, total_timesteps, eval_env = None, seed=None, nsteps=2
 
         # Get minibatch
         print("before minibatch")
+        # TODO: use some sort of replay buffer here instead of being on policy with 'realistic data'
         obs, returns, masks, actions, values, neglogpacs, states, epinfos = runner.run() #pylint: disable=E0632
         print("after minibatch")
         if eval_env is not None:
