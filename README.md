@@ -7,6 +7,16 @@
 run this command python -m baselines.run --alg=ppo2 --env=behavioral_sim --num_timesteps=1e4 --save_path="/baselines/behavioral_sim/saved_models" --log_path="~/research/baselines-RAISE/baselines/behavioral_sim/logs/test"
 
 
+flags that you'll need to modify:
+--alg=<algorithm that you want to run>
+--env=behav_sim (always keep this for now)
+--action_space=<action_space_string>  (choices are: multidiscrete, discrete, continuous, symmetric. Pick the one that fits your algorithm)
+--one_day=<True or False> (if True, controller will train on same price signal over and over again. if False, it will iterate over a year's worth of price signals)
+--energy_in_state=<True or False>  (if True, the previous day's energy consumption will be a part of the state space)
+--save_path=<path> (where the model will be saved upon completion)
+--log_path= <path> (where the algorithm's logs will be saved. This is important for creating learning curves.)
+--num_timesteps=<int> (number of iterations/steps the controller takes in the environment.)
+
 # Baselines
 
 OpenAI Baselines is a set of high-quality implementations of reinforcement learning algorithms. 

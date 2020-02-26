@@ -66,7 +66,7 @@ def train(args, extra_args):
     alg_kwargs = get_learn_function_defaults(args.alg, env_type)
     alg_kwargs.update(extra_args)
 
-    env = build_env(args)
+    env = build_env(args, extra_args)
     if args.save_video_interval != 0:
         env = VecVideoRecorder(env, osp.join(logger.get_dir(), "videos"), record_video_trigger=lambda x: x % args.save_video_interval == 0, video_length=args.save_video_length)
 
@@ -88,7 +88,7 @@ def train(args, extra_args):
     return model, env
 
 
-def build_env(args):
+def build_env(args, extra_args):
     ncpu = multiprocessing.cpu_count()
     if sys.platform == 'darwin': ncpu //= 2
     nenv = args.num_env or ncpu
@@ -107,12 +107,20 @@ def build_env(args):
             env = make_vec_env(env_id, env_type, nenv, seed, gamestate=args.gamestate, reward_scale=args.reward_scale)
             env = VecFrameStack(env, frame_stack_size)
     elif env_type == "custom":
-        if env_id == "behavioral_sim":
-            env = custom_envs.BehavSimEnv()
-        elif env_id == "behavioral_sim_one_day":
-            env = custom_envs.BehavSimEnv(one_day=True)
-        elif env_id == "behavioral_sim_hourly":
-            env = custom_envs.HourlySimEnv(one_day=True)
+        if extra_args["step_size"] == "hour":
+            env = custom_envs.HourlySimEnv(action_space_string=extra_args["action_space"],
+                                           one_day=extra_args["one_day"],
+                                           energy_in_state=extra_args["energy_in_state"])
+        elif extra_args["step_size"] == "day":
+            env = custom_envs.BehavSimEnv(action_space_string=extra_args["action_space"],
+                                           one_day=extra_args["one_day"],
+                                           energy_in_state=extra_args["energy_in_state"])
+        else:
+            print("step_size argument not specified or value not recognized. Needs to be 'hour' or 'day'. Defaulting to day.")
+            env = custom_envs.BehavSimEnv(action_space_string=extra_args["action_space"],
+                                           one_day=extra_args["one_day"],
+                                           energy_in_state=extra_args["energy_in_state"])
+
         # wrap it
         #timestamp = datetime.now().strftime('_%m_%d_%Y_%H_%M')
         #log_file = os.path.join(os.getcwd(), "baselines", "behavioral_sim", "logs", timestamp)

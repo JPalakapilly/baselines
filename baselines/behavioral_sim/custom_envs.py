@@ -10,12 +10,11 @@ class BehavSimEnv(gym.Env):
     """Custom Environment that follows gym interface"""
     metadata = {'render.modes': ['human']}
 
-    def __init__(self, one_day=False, energy_in_state=False):
+    def __init__(self, action_space_string="MultiDiscrete", one_day=False, energy_in_state=False):
         super(BehavSimEnv, self).__init__()
-
-        discrete_space = [3] * 10
-
-        self.action_space = spaces.Box(low=0, high=10, shape=(10,), dtype=np.float32)
+        self.action_length = 10
+        self.action_subspace = 3
+        self._create_action_space(action_space_string)
         if energy_in_state:
             self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(20,), dtype=np.float32)
         else:
@@ -30,6 +29,26 @@ class BehavSimEnv(gym.Env):
         self.cur_iter = 0
         self.day = 0
         print("BehavSimEnv Initialized")
+
+    def _create_action_space(self, action_space_string):
+        action_space_string = action_space_string.lower()
+        self.action_space_string = action_space_string
+
+        if action_space_string == "continuous":
+            self.action_space = spaces.Box(low=0, high=10, shape=(self.action_length,), dtype=np.float32)
+        elif action_space_string == "symmetric":
+            self.action_space = spaces.Box(low=-10, high=10, shape=(self.action_length,), dtype=np.float32)
+        elif action_space_string == "multidiscrete":
+            discrete_space = [self.action_subspace] * self.action_length
+            self.action_space = spaces.MultiDiscrete(discrete_space)
+        elif action_space_string == "discrete":
+            self.action_space = spaces.Discrete(self.action_subspace ** self.action_length)
+        else:
+            print("action_space not recognized. Defaulting to MultiDiscrete.")
+            discrete_space = [self.action_subspace] * self.action_length
+            self.action_space = spaces.MultiDiscrete(discrete_space)
+            self.action_space_string = "multidiscrete"
+
 
 
     def _get_prices(self, one_day):
@@ -118,7 +137,15 @@ class BehavSimEnv(gym.Env):
         return observation, reward, done, info
 
     def _points_from_action(self, action):
-        return action
+        if self.action_space_string == "discrete":
+            points = [0] * self.action_length
+            temp = action
+            for i in range(self.action_length-1, -1, -1):
+                points[i] = temp // (self.action_subspace**i)
+                temp = temp % (self.action_subspace**i)
+        else:
+            points = action
+        return points
 
     def _simulate_humans(self, prev_observation, action):
         energy_consumptions = {}
@@ -166,51 +193,15 @@ class BehavSimEnv(gym.Env):
     def close (self):
         pass
 
-class SymmetricSimEnv(BehavSimEnv):
-    """Custom Environment that follows gym interface"""
-    metadata = {'render.modes': ['human']}
-
-    def __init__(self, one_day=False, energy_in_state=False):
-        super(SymmetricSimEnv, self).__init__()
-        self.action_space = spaces.Box(low=-10, high=10, shape=(10,), dtype=np.float32)
-        print("SymmetricSimEnv Initialized")
-
-class MultiDiscreteSimEnv(BehavSimEnv):
-    """Custom Environment that follows gym interface"""
-    metadata = {'render.modes': ['human']}
-
-    def __init__(self, one_day=False, energy_in_state=False):
-        super(MultiDiscreteSimEnv, self).__init__()
-        self.action_space = spaces.MultiDiscrete(discrete_space)
-        print("MultiDiscreteSimEnv Initialized")
-
-
-class DiscreteSimEnv(BehavSimEnv):
-    """Custom Environment that follows gym interface"""
-    metadata = {'render.modes': ['human']}
-
-    def __init__(self, one_day=False, energy_in_state=False):
-        super(DiscreteSimEnv, self).__init__()
-        self.action_subspace = 3
-        self.action_length = 10
-        self.action_space = spaces.Discrete(self.action_subspace ** self.action_length)
-
-        print("DiscreteSimEnv Initialized")
-
-    def _points_from_action(self, action):
-        points = [0] * self.action_length
-        temp = action
-        for i in range(self.action_length-1, -1, -1):
-            points[i] = temp // (self.action_subspace**i)
-            temp = temp % (self.action_subspace**i)
-        return points
 
 class HourlySimEnv(BehavSimEnv):
     """Custom Environment that follows gym interface"""
     metadata = {'render.modes': ['human']}
 
-    def __init__(self, one_day=False, energy_in_state=False):
-        self.action_space = spaces.Box(low=0, high=10, shape=(1,), dtype=np.float32)
+    def __init__(self, action_space_string="MultiDiscrete", one_day=False, energy_in_state=False):
+        self.action_length = 1
+        self.action_subspace = 3
+        self._create_action_space(action_space_string)
         if energy_in_state:
             self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(22,), dtype=np.float32)
         else:
@@ -328,10 +319,6 @@ class HourlySimEnv(BehavSimEnv):
         info = {}
         return observation, reward, done, info
 
-
-    def _points_from_action(self, action):
-        return action
-
     def _simulate_humans(self, prev_observation, action):
         energy_consumptions = {}
         total_consumption = np.zeros(10)
@@ -378,9 +365,3 @@ class HourlySimEnv(BehavSimEnv):
         else:
             observation = np.concatenate((self.prices[self.day], np.array([0]), np.array([self.hour])))
         return observation
-
-    def render(self, mode='human'):
-        pass
-
-    def close (self):
-        pass
