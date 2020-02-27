@@ -4,10 +4,13 @@
 
 # RAISE NOTES
 
-run this command python -m baselines.run --alg=ppo2 --env=behavioral_sim --num_timesteps=1e4 --save_path="/baselines/behavioral_sim/saved_models" --log_path="~/research/baselines-RAISE/baselines/behavioral_sim/logs/test"
-
+command to run the simulation + controller
+```
+python -m baselines.run --alg=ppo2 --action_space="multidiscrete" --one_day=False --energy_in_state=True --env=behav_sim --num_timesteps=1e4 --save_path="temp" --log_path="temp"
+```
 
 flags that you'll need to modify:
+```
 --alg=<algorithm that you want to run>
 --env=behav_sim (always keep this for now)
 --action_space=<action_space_string>  (choices are: multidiscrete, discrete, continuous, symmetric. Pick the one that fits your algorithm)
@@ -16,6 +19,7 @@ flags that you'll need to modify:
 --save_path=<path> (where the model will be saved upon completion)
 --log_path= <path> (where the algorithm's logs will be saved. This is important for creating learning curves.)
 --num_timesteps=<int> (number of iterations/steps the controller takes in the environment.)
+```
 
 # Baselines
 
