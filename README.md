@@ -6,14 +6,15 @@
 
 command to run the simulation + controller
 ```
-python -m baselines.run --alg=ppo2 --action_space="multidiscrete" --one_day=False --energy_in_state=True --env=behav_sim --num_timesteps=1e4 --save_path="temp" --log_path="temp"
+python -m baselines.run --alg=ppo2 --action_space="multidiscrete" --env=behav_sim --step_size=day --one_day=False --energy_in_state=True  --num_timesteps=1e4 --save_path="temp" --log_path="temp"
 ```
 
 flags that you'll need to modify:
 ```
 --alg=<algorithm that you want to run>
---env=behav_sim (always keep this for now)
 --action_space=<action_space_string>  (choices are: multidiscrete, discrete, continuous, symmetric. Pick the one that fits your algorithm)
+--env=behav_sim (always keep this for now)
+--step_size=<step_size_string> (choices are "day" or "hour". Rewards will always be given daily. This decides whether the controller yields one action per day or per hour. Determines the length of the action vector.)
 --one_day=<True or False> (if True, controller will train on same price signal over and over again. if False, it will iterate over a year's worth of price signals)
 --energy_in_state=<True or False>  (if True, the previous day's energy consumption will be a part of the state space)
 --save_path=<path> (where the model will be saved upon completion)
