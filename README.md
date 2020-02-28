@@ -30,10 +30,19 @@ loading log data
 from baselines.common import plot_util as pu
 import matplotlib.pyplot as plt
 import numpy as np
+import os.path
+import json
 
 
-results = pu.load_results("path_to_log_folder")
+results = pu.load_results("path_to_log_folder") # what you specified in --log_path
 r = results[0]
+```
+
+getting some config data. If you forgot what settings the run was using. 
+```
+with open(config_path, "r") as f:
+    config_dict = json.load(f)
+config_dict
 ```
 
 plotting reward curves

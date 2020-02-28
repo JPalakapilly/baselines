@@ -8,6 +8,7 @@ from collections import defaultdict
 import tensorflow as tf
 import numpy as np
 from datetime import datetime
+import json
 
 from baselines.bench import Monitor
 from baselines.common.vec_env import VecFrameStack, VecNormalize, VecEnv
@@ -65,7 +66,7 @@ def train(args, extra_args):
     learn = get_learn_function(args.alg)
     alg_kwargs = get_learn_function_defaults(args.alg, env_type)
     env = build_env(args, extra_args)
-
+    user_args = extra_args
     # need to do this because openAI is stupid and is making user defined args difficult
     extra_args = remove_user_args(extra_args)
     alg_kwargs.update(extra_args)
@@ -245,7 +246,6 @@ def main(args):
     arg_parser = common_arg_parser()
     args, unknown_args = arg_parser.parse_known_args(args)
     extra_args = parse_cmdline_kwargs(unknown_args)
-
     if MPI is None or MPI.COMM_WORLD.Get_rank() == 0:
         rank = 0
         configure_logger(args.log_path)
@@ -253,6 +253,12 @@ def main(args):
         rank = MPI.COMM_WORLD.Get_rank()
         configure_logger(args.log_path, format_strs=[])
     print("training")
+    config_dict = extra_args.copy()
+    config_dict["algorithm"] = args.alg
+    log_config_path = os.path.expanduser(os.path.join(args.log_path, "config.json"))
+    with open(log_config_path, 'w+') as outfile:
+        json.dump(config_dict, outfile)
+
     model, env = train(args, extra_args)
     print("trained")
     if args.save_path is not None and rank == 0:
