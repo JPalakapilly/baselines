@@ -188,7 +188,10 @@ class BehavSimEnv(gym.Env):
         return total_reward
   
     def reset(self):
-        return np.concatenate((self.prices[self.day], self.prev_energy))
+        if self.energy_in_state:
+            return np.concatenate((self.prices[self.day], self.prev_energy))
+        else:
+            return self.prices[self.day]
 
     def render(self, mode='human'):
         pass
