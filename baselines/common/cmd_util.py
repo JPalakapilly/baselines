@@ -195,10 +195,6 @@ def parse_unknown_args(args):
             if '=' in arg:
                 key = arg.split('=')[0][2:]
                 value = arg.split('=')[1]
-                if value.lower() == "true":
-                    value = True
-                elif value.lower() == "false":
-                    value = False
                 retval[key] = value
             else:
                 key = arg[2:]

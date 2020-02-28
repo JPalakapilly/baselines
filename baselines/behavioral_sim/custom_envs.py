@@ -28,6 +28,7 @@ class BehavSimEnv(gym.Env):
         self.player_dict = self._create_agents()
         self.cur_iter = 0
         self.day = 0
+        self.prev_energy = np.array([80, 120, 200, 210, 180, 250, 380, 310, 220, 140])
         print("BehavSimEnv Initialized")
 
     def _create_action_space(self, action_space_string):
@@ -129,9 +130,11 @@ class BehavSimEnv(gym.Env):
             done = False
         points = self._points_from_action(action)
         energy_consumptions = self._simulate_humans(prev_observation, points)
+
         if self.energy_in_state:
             # HACK ALERT. USING AVG ENERGY CONSUMPTION FOR STATE SPACE. this will not work if people are not all the same
-            observation = np.concatenate(observation, energy_consumptions["avg"])
+            self.prev_energy = energy_consumptions["avg"]
+            observation = np.concatenate((observation, self.prev_energy))
         reward = self._get_reward(prev_observation, energy_consumptions)
         info = {}
         return observation, reward, done, info
@@ -185,7 +188,7 @@ class BehavSimEnv(gym.Env):
         return total_reward
   
     def reset(self):
-        return self.prices[self.day]
+        return np.concatenate((self.prices[self.day], self.prev_energy))
 
     def render(self, mode='human'):
         pass
