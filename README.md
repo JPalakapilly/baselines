@@ -4,9 +4,10 @@
 
 # RAISE NOTES
 
-command to run the simulation + controller
+## Running the Simulation + Controller
+This is the command
 ```
-python -m baselines.run --alg=ppo2 --action_space="multidiscrete" --env=behav_sim --step_size=day --one_day=False --energy_in_state=True  --num_timesteps=1e4 --save_path="temp" --log_path="temp"
+python -m baselines.run --alg=ppo2 --action_space=multidiscrete --env=behav_sim --step_size=day --one_day=False --energy_in_state=True  --num_timesteps=1e4 --save_path="temp" --log_path="temp"
 ```
 
 flags that you'll need to modify:
@@ -17,10 +18,30 @@ flags that you'll need to modify:
 --step_size=<step_size_string> (choices are "day" or "hour". Rewards will always be given daily. This decides whether the controller yields one action per day or per hour. Determines the length of the action vector.)
 --one_day=<True or False> (if True, controller will train on same price signal over and over again. if False, it will iterate over a year's worth of price signals)
 --energy_in_state=<True or False>  (if True, the previous day's energy consumption will be a part of the state space)
+--num_timesteps=<int> (number of iterations/steps the controller takes in the environment.)
 --save_path=<path> (where the model will be saved upon completion)
 --log_path= <path> (where the algorithm's logs will be saved. This is important for creating learning curves.)
---num_timesteps=<int> (number of iterations/steps the controller takes in the environment.)
 ```
+
+## Visualizing Results
+
+loading log data
+```
+from baselines.common import plot_util as pu
+import matplotlib.pyplot as plt
+import numpy as np
+
+
+results = pu.load_results("path_to_folder_CONTAINING_log_folder_here") #should be one directory up from what you specified in --log_path
+r = results[i] # if you have multiple log folders, you'll have to index the right one. I haven't found a better way than guess and check. 
+```
+
+plotting reward curves
+```
+plt.plot(np.cumsum(r.monitor.l), r.monitor.r) # unsmoothed
+plt.plot(np.cumsum(r.monitor.l), pu.smooth(r.monitor.r, radius=10)) #smoothed with specified radius
+```
+
 
 # Baselines
 
