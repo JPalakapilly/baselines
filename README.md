@@ -32,8 +32,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-results = pu.load_results("path_to_folder_CONTAINING_log_folder_here") #should be one directory up from what you specified in --log_path
-r = results[i] # if you have multiple log folders, you'll have to index the right one. I haven't found a better way than guess and check. 
+results = pu.load_results("path_to_log_folder")
+r = results[0]
 ```
 
 plotting reward curves
