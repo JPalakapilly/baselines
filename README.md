@@ -24,6 +24,7 @@ flags that you'll need to modify:
 ```
 
 ## Visualizing Results
+You prob wanna run these sequentially in a jupyter notebook or something similar.
 
 loading log data
 ```
@@ -33,8 +34,9 @@ import numpy as np
 import os.path
 import json
 
-
-results = pu.load_results("path_to_log_folder") # what you specified in --log_path
+log_dir_path = '/home/jpalaks/research/baselines-RAISE/logs/test' # what you specified in --log_path
+config_path = os.path.join(log_dir_path, "config.json")
+results = pu.load_results(log_dir_path)
 r = results[0]
 ```
 
