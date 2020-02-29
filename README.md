@@ -4,7 +4,54 @@
 
 # RAISE NOTES
 
-run this command python -m baselines.run --alg=ppo2 --env=behavioral_sim --num_timesteps=1e4 --save_path="/baselines/behavioral_sim/saved_models" --log_path="~/research/baselines-RAISE/baselines/behavioral_sim/logs/test"
+## Running the Simulation + Controller
+This is the command
+```
+python -m baselines.run --alg=ppo2 --action_space=multidiscrete --env=behav_sim --step_size=day --one_day=False --energy_in_state=True  --num_timesteps=1e4 --save_path="temp" --log_path="temp"
+```
+
+flags that you'll need to modify:
+```
+--alg=<algorithm that you want to run>
+--action_space=<action_space_string>  (choices are: multidiscrete, discrete, continuous, symmetric. Pick the one that fits your algorithm)
+--env=behav_sim (always keep this for now)
+--step_size=<step_size_string> (choices are "day" or "hour". Rewards will always be given daily. This decides whether the controller yields one action per day or per hour. Determines the length of the action vector.)
+--one_day=<True or False> (if True, controller will train on same price signal over and over again. if False, it will iterate over a year's worth of price signals)
+--energy_in_state=<True or False>  (if True, the previous day's energy consumption will be a part of the state space)
+--num_timesteps=<int> (number of iterations/steps the controller takes in the environment.)
+--save_path=<path> (where the model will be saved upon completion)
+--log_path= <path> (where the algorithm's logs will be saved. This is important for creating learning curves.)
+```
+
+## Visualizing Results
+You prob wanna run these sequentially in a jupyter notebook or something similar.
+
+loading log data
+```
+from baselines.common import plot_util as pu
+import matplotlib.pyplot as plt
+import numpy as np
+import os.path
+import json
+
+log_dir_path = '/home/jpalaks/research/baselines-RAISE/logs/test' # what you specified in --log_path
+config_path = os.path.join(log_dir_path, "config.json")
+results = pu.load_results(log_dir_path)
+r = results[0]
+```
+
+getting some config data. If you forgot what settings the run was using. 
+```
+with open(config_path, "r") as f:
+    config_dict = json.load(f)
+config_dict
+```
+
+plotting reward curves
+```
+plt.plot(np.cumsum(r.monitor.l), r.monitor.r) # unsmoothed
+plt.plot(np.cumsum(r.monitor.l), pu.smooth(r.monitor.r, radius=10)) #smoothed with specified radius
+```
 
 
 # Baselines

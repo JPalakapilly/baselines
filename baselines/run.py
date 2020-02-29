@@ -8,6 +8,7 @@ from collections import defaultdict
 import tensorflow as tf
 import numpy as np
 from datetime import datetime
+import json
 
 from baselines.bench import Monitor
 from baselines.common.vec_env import VecFrameStack, VecNormalize, VecEnv
@@ -64,9 +65,12 @@ def train(args, extra_args):
 
     learn = get_learn_function(args.alg)
     alg_kwargs = get_learn_function_defaults(args.alg, env_type)
+    env = build_env(args, extra_args)
+    user_args = extra_args
+    # need to do this because openAI is stupid and is making user defined args difficult
+    extra_args = remove_user_args(extra_args)
     alg_kwargs.update(extra_args)
 
-    env = build_env(args)
     if args.save_video_interval != 0:
         env = VecVideoRecorder(env, osp.join(logger.get_dir(), "videos"), record_video_trigger=lambda x: x % args.save_video_interval == 0, video_length=args.save_video_length)
 
@@ -87,8 +91,14 @@ def train(args, extra_args):
 
     return model, env
 
+def remove_user_args(extra_args):
+    behav_sim_arg_list = ("step_size", "action_space", "one_day", "energy_in_state")
+    for k in behav_sim_arg_list:
+        extra_args.pop(k)
+    return extra_args
 
-def build_env(args):
+
+def build_env(args, extra_args):
     ncpu = multiprocessing.cpu_count()
     if sys.platform == 'darwin': ncpu //= 2
     nenv = args.num_env or ncpu
@@ -107,10 +117,23 @@ def build_env(args):
             env = make_vec_env(env_id, env_type, nenv, seed, gamestate=args.gamestate, reward_scale=args.reward_scale)
             env = VecFrameStack(env, frame_stack_size)
     elif env_type == "custom":
-        if env_id == "behavioral_sim":
-            env = custom_envs.BehavSimEnv()
-        elif env_id == "behavioral_sim_one_day":
-            env = custom_envs.BehavSimEnv(one_day=True)
+        try:
+            if extra_args["step_size"] == "hour":
+                env = custom_envs.HourlySimEnv(action_space_string=extra_args["action_space"],
+                                               one_day=extra_args["one_day"],
+                                               energy_in_state=extra_args["energy_in_state"])
+            elif extra_args["step_size"] == "day":
+                env = custom_envs.BehavSimEnv(action_space_string=extra_args["action_space"],
+                                               one_day=extra_args["one_day"],
+                                               energy_in_state=extra_args["energy_in_state"])
+            else:
+                print("step_size argument not recognized. Needs to be 'hour' or 'day'. Defaulting to day.")
+                env = custom_envs.BehavSimEnv(action_space_string=extra_args["action_space"],
+                                               one_day=extra_args["one_day"],
+                                               energy_in_state=extra_args["energy_in_state"])
+        except KeyError as e:
+            raise KeyError("You didn't specify", e.args[0], "as an argument. Please do. or change the code.")
+
         # wrap it
         #timestamp = datetime.now().strftime('_%m_%d_%Y_%H_%M')
         #log_file = os.path.join(os.getcwd(), "baselines", "behavioral_sim", "logs", timestamp)
@@ -146,7 +169,7 @@ def get_env_type(args):
     for env in gym.envs.registry.all():
         env_type = env.entry_point.split(':')[0].split('.')[-1]
         _game_envs[env_type].add(env.id)  # This is a set so add is idempotent
-    if env_id.startswith("behavioral_sim"):
+    if env_id == "behav_sim":
         env_type = "custom"
     elif env_id in _game_envs.keys():
         env_type = env_id
@@ -201,7 +224,6 @@ def parse_cmdline_kwargs(args):
     convert a list of '='-spaced command-line arguments to a dictionary, evaluating python objects when possible
     '''
     def parse(v):
-
         assert isinstance(v, str)
         try:
             return eval(v)
@@ -224,7 +246,6 @@ def main(args):
     arg_parser = common_arg_parser()
     args, unknown_args = arg_parser.parse_known_args(args)
     extra_args = parse_cmdline_kwargs(unknown_args)
-
     if MPI is None or MPI.COMM_WORLD.Get_rank() == 0:
         rank = 0
         configure_logger(args.log_path)
@@ -232,6 +253,12 @@ def main(args):
         rank = MPI.COMM_WORLD.Get_rank()
         configure_logger(args.log_path, format_strs=[])
     print("training")
+    config_dict = extra_args.copy()
+    config_dict["algorithm"] = args.alg
+    log_config_path = os.path.expanduser(os.path.join(args.log_path, "config.json"))
+    with open(log_config_path, 'w+') as outfile:
+        json.dump(config_dict, outfile)
+
     model, env = train(args, extra_args)
     print("trained")
     if args.save_path is not None and rank == 0:

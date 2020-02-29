@@ -10,13 +10,11 @@ class BehavSimEnv(gym.Env):
     """Custom Environment that follows gym interface"""
     metadata = {'render.modes': ['human']}
 
-    def __init__(self, one_day=False, energy_in_state=False):
+    def __init__(self, action_space_string="MultiDiscrete", one_day=False, energy_in_state=False):
         super(BehavSimEnv, self).__init__()
-
-        discrete_space = [3] * 10
-        self.action_space = spaces.MultiDiscrete(discrete_space)
-
-        self.action_space = spaces.Box(low=-50, high=50, shape=(10,), dtype=np.float32)
+        self.action_length = 10
+        self.action_subspace = 3
+        self._create_action_space(action_space_string)
         if energy_in_state:
             self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(20,), dtype=np.float32)
         else:
@@ -30,7 +28,28 @@ class BehavSimEnv(gym.Env):
         self.player_dict = self._create_agents()
         self.cur_iter = 0
         self.day = 0
+        self.prev_energy = np.array([80, 120, 200, 210, 180, 250, 380, 310, 220, 140])
         print("BehavSimEnv Initialized")
+
+    def _create_action_space(self, action_space_string):
+        action_space_string = action_space_string.lower()
+        self.action_space_string = action_space_string
+
+        if action_space_string == "continuous":
+            self.action_space = spaces.Box(low=0, high=10, shape=(self.action_length,), dtype=np.float32)
+        elif action_space_string == "symmetric":
+            self.action_space = spaces.Box(low=-10, high=10, shape=(self.action_length,), dtype=np.float32)
+        elif action_space_string == "multidiscrete":
+            discrete_space = [self.action_subspace] * self.action_length
+            self.action_space = spaces.MultiDiscrete(discrete_space)
+        elif action_space_string == "discrete":
+            self.action_space = spaces.Discrete(self.action_subspace ** self.action_length)
+        else:
+            print("action_space not recognized. Defaulting to MultiDiscrete.")
+            discrete_space = [self.action_subspace] * self.action_length
+            self.action_space = spaces.MultiDiscrete(discrete_space)
+            self.action_space_string = "multidiscrete"
+
 
 
     def _get_prices(self, one_day):
@@ -39,7 +58,7 @@ class BehavSimEnv(gym.Env):
         if one_day:
             # if repeating the same day, then use a random day. 
             # SET FIXED DAY HERE
-            day = 50
+            day = 49
             price = utils.price_signal(day + 1)
             price = np.array(price[8:18])
             for i in range(365):
@@ -89,14 +108,14 @@ class BehavSimEnv(gym.Env):
 
         my_baseline_energy = pd.DataFrame(data={"net_energy_use": working_hour_energy})
 
-        player_dict['player_0'] = DeterministicFunctionPerson(my_baseline_energy, points_multiplier = 100)
-        player_dict['player_1'] = DeterministicFunctionPerson(my_baseline_energy, points_multiplier = 100)
-        player_dict['player_2'] = DeterministicFunctionPerson(my_baseline_energy, points_multiplier = 100)
-        player_dict['player_3'] = DeterministicFunctionPerson(my_baseline_energy, points_multiplier = 100)
-        player_dict['player_4'] = DeterministicFunctionPerson(my_baseline_energy, points_multiplier = 100)
-        player_dict['player_5'] = DeterministicFunctionPerson(my_baseline_energy, points_multiplier = 100)
-        player_dict['player_6'] = DeterministicFunctionPerson(my_baseline_energy, points_multiplier = 100)
-        player_dict['player_7'] = DeterministicFunctionPerson(my_baseline_energy, points_multiplier = 100)
+        player_dict['player_0'] = DeterministicFunctionPerson(my_baseline_energy, points_multiplier = 10)
+        player_dict['player_1'] = DeterministicFunctionPerson(my_baseline_energy, points_multiplier = 10)
+        player_dict['player_2'] = DeterministicFunctionPerson(my_baseline_energy, points_multiplier = 10)
+        player_dict['player_3'] = DeterministicFunctionPerson(my_baseline_energy, points_multiplier = 10)
+        player_dict['player_4'] = DeterministicFunctionPerson(my_baseline_energy, points_multiplier = 10)
+        player_dict['player_5'] = DeterministicFunctionPerson(my_baseline_energy, points_multiplier = 10)
+        player_dict['player_6'] = DeterministicFunctionPerson(my_baseline_energy, points_multiplier = 10)
+        player_dict['player_7'] = DeterministicFunctionPerson(my_baseline_energy, points_multiplier = 10)
 
         return player_dict
 
@@ -109,13 +128,27 @@ class BehavSimEnv(gym.Env):
             done = True
         else:
             done = False
-        energy_consumptions = self._simulate_humans(prev_observation, action)
+        points = self._points_from_action(action)
+        energy_consumptions = self._simulate_humans(prev_observation, points)
+
         if self.energy_in_state:
             # HACK ALERT. USING AVG ENERGY CONSUMPTION FOR STATE SPACE. this will not work if people are not all the same
-            observation = np.concatenate(observation, energy_consumptions["avg"])
+            self.prev_energy = energy_consumptions["avg"]
+            observation = np.concatenate((observation, self.prev_energy))
         reward = self._get_reward(prev_observation, energy_consumptions)
         info = {}
         return observation, reward, done, info
+
+    def _points_from_action(self, action):
+        if self.action_space_string == "discrete":
+            points = [0] * self.action_length
+            temp = action
+            for i in range(self.action_length-1, -1, -1):
+                points[i] = temp // (self.action_subspace**i)
+                temp = temp % (self.action_subspace**i)
+        else:
+            points = action
+        return points
 
     def _simulate_humans(self, prev_observation, action):
         energy_consumptions = {}
@@ -126,7 +159,7 @@ class BehavSimEnv(gym.Env):
                 player = self.player_dict[player_name]
                 # get the points output from players
                 # CHANGE PLAYER RESPONSE FN HERE
-                player_energy = player.threshold_exp_response(action)
+                player_energy = np.array(player.threshold_exp_response(action))
                 energy_consumptions[player_name] = player_energy
                 total_consumption += player_energy
                 num_players += 1
@@ -155,12 +188,82 @@ class BehavSimEnv(gym.Env):
         return total_reward
   
     def reset(self):
-        self.day = np.random.randint(365)
-        self.cur_iter = 0
-        return self.prices[self.cur_iter]
+        if self.energy_in_state:
+            return np.concatenate((self.prices[self.day], self.prev_energy))
+        else:
+            return self.prices[self.day]
 
     def render(self, mode='human'):
         pass
 
     def close (self):
         pass
+
+
+class HourlySimEnv(BehavSimEnv):
+    """Custom Environment that follows gym interface"""
+    metadata = {'render.modes': ['human']}
+
+    def __init__(self, action_space_string="MultiDiscrete", one_day=False, energy_in_state=False):
+        self.action_length = 1
+        self.action_subspace = 3
+        self._create_action_space(action_space_string)
+        if energy_in_state:
+            self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(22,), dtype=np.float32)
+        else:
+            self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(12,), dtype=np.float32)
+
+        self.one_day = one_day
+        self.energy_in_state = energy_in_state
+        self.prices = self._get_prices(one_day)
+        assert self.prices.shape == (365, 10)
+
+        self.player_dict = self._create_agents()
+        self.cur_iter = 0
+        self.day = 0
+        self.hour = 0
+
+        #TODO sample from wg1.txt
+        self.prev_energy = [80, 120, 200, 210, 180, 250, 380, 310, 220, 140]
+        self.prev_point = []
+        print("HourlySimEnv Initialized")
+
+    def step(self, action):
+        
+        #self.day = (self.day + 1) % 365
+        self.hour += 1
+        self.cur_iter += 1
+        point = self._points_from_action(action)
+        self.prev_points.append(point)
+        
+        if self.hour == 10:
+            assert len(self.prev_points) == 10
+            prev_observation = self.prices[self.day]
+            points = np.squeeze(np.array(self.prev_points))
+            energy_consumptions = self._simulate_humans(prev_observation, points)
+            # HACK ALERT. USING AVG ENERGY CONSUMPTION FOR STATE SPACE. this will not work if people are not all the same
+            self.prev_energy = energy_consumptions["avg"]
+            reward = self._get_reward(prev_observation, energy_consumptions)
+            self.day = (self.day + 1) % 365
+            done = True
+        else:
+            reward = np.array(0)
+            done = False
+
+        if self.energy_in_state:
+            observation = np.concatenate((self.prices[self.day], self.prev_energy, np.array(self.prev_points[-1]), np.array([self.hour])))
+        else:
+            observation = np.concatenate((self.prices[self.day], np.array(self.prev_points[-1]), np.array([self.hour])))
+
+        
+        info = {}
+        return observation, reward, done, info
+  
+    def reset(self):
+        self.hour = 0
+        self.prev_points = []
+        if self.energy_in_state:
+            observation = np.concatenate((self.prices[self.day], self.prev_energy, np.array([0]), np.array([self.hour])))
+        else:
+            observation = np.concatenate((self.prices[self.day], np.array([0]), np.array([self.hour])))
+        return observation

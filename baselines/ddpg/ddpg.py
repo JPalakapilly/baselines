@@ -23,13 +23,13 @@ def learn(network, env,
           total_timesteps=None,
           nb_epochs=None, # with default settings, perform 1M steps total
           nb_epoch_cycles=20,
-          nb_rollout_steps=100,
+          nb_rollout_steps=10,
           reward_scale=1.0,
           render=False,
           render_eval=False,
           noise_type='adaptive-param_0.2',
           normalize_returns=False,
-          normalize_observations=True,
+          normalize_observations=False, # JP changed this default:true
           critic_l2_reg=1e-2,
           actor_lr=1e-4,
           critic_lr=1e-3,
@@ -38,7 +38,7 @@ def learn(network, env,
           clip_norm=None,
           nb_train_steps=50, # per epoch cycle and MPI worker,
           nb_eval_steps=100,
-          batch_size=64, # per MPI worker
+          batch_size=4, # per MPI worker # JP Changed this from default:64
           tau=0.01,
           eval_env=None,
           param_noise_adaption_interval=50,
@@ -50,20 +50,18 @@ def learn(network, env,
         assert nb_epochs is None
         nb_epochs = int(total_timesteps) // (nb_epoch_cycles * nb_rollout_steps)
     else:
-        nb_epochs = 500
+        nb_epochs = 50
 
     if MPI is not None:
         rank = MPI.COMM_WORLD.Get_rank()
     else:
         rank = 0
-
     nb_actions = env.action_space.shape[-1]
     assert (np.abs(env.action_space.low) == env.action_space.high).all()  # we assume symmetric actions.
 
     memory = Memory(limit=int(1e6), action_shape=env.action_space.shape, observation_shape=env.observation_space.shape)
     critic = Critic(network=network, **network_kwargs)
     actor = Actor(nb_actions, network=network, **network_kwargs)
-
     action_noise = None
     param_noise = None
     if noise_type is not None:
@@ -82,7 +80,6 @@ def learn(network, env,
                 action_noise = OrnsteinUhlenbeckActionNoise(mu=np.zeros(nb_actions), sigma=float(stddev) * np.ones(nb_actions))
             else:
                 raise RuntimeError('unknown noise type "{}"'.format(current_noise_type))
-
     max_action = env.action_space.high
     logger.info('scaling actions by {} before executing in env'.format(max_action))
 
@@ -124,6 +121,7 @@ def learn(network, env,
     epoch_actions = []
     epoch_qs = []
     epoch_episodes = 0
+    print("DDPGGGGGGG")
     for epoch in range(nb_epochs):
         for cycle in range(nb_epoch_cycles):
             # Perform rollouts.
@@ -169,7 +167,7 @@ def learn(network, env,
                         if nenvs == 1:
                             agent.reset()
 
-
+            print("DDPGGGGGGG2")
 
             # Train.
             epoch_actor_losses = []
