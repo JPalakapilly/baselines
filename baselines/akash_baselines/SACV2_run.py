@@ -50,29 +50,35 @@ def train(response_type_str):
             continue
             
         else:
+            action_star = None
+            min_combined_loss = 1e10
             if(memory.get_len() > batch_size):
-                critic_1_losses = []
-                critic_2_losses = []
-                policy_losses = []
-                alpha_losses = []
-                actions = []
+                # critic_1_losses = []
+                # critic_2_losses = []
+                # policy_losses = []
+                # alpha_losses = []
                 for training_iter in range(1000):
                     print("Training Iter: " + str(training_iter))
                     q1_loss, q2_loss, policy_loss, alpha_loss = agent.update_params(batch_size)
-                    critic_1_losses.append(q1_loss)
-                    critic_2_losses.append(q2_loss)
-                    policy_losses.append(policy_loss)
-                    alpha_losses.append(alpha_loss)
-                    actions.append(agent.get_action(state))
+                    # critic_1_losses.append(q1_loss)
+                    # critic_2_losses.append(q2_loss)
+                    # policy_losses.append(policy_loss)
+                    # alpha_losses.append(alpha_loss)
+
+                    combined_q_loss = q1_loss + q2_loss
+                    if(combined_q_loss < min_combined_loss):
+                        action_star = agent.get_action(state)
+                        min_combined_loss = combined_q_loss
             #didn't know how to find min loss b/c of clipping
-            combined_q_loss = np.array(critic_1_losses) + np.array(critic_2_losses)
-            min_loss = np.amin(combined_q_loss)
-            index_of_min = np.where(combined_q_loss == min_loss)[0][0]
-            action = actions[index_of_min]
+            # combined_q_loss = np.array(critic_1_losses) + np.array(critic_2_losses)
+            # min_loss = np.amin(combined_q_loss)
+            # index_of_min = np.where(combined_q_loss == min_loss)[0][0]
+            # action = actions[index_of_min]
+            action = action_star
             
-            min_combined_losses.append(min_loss)
-            min_policy_losses.append(np.amin(np.array(policy_losses)))
-            min_alpha_losses.append(np.amin(np.array(alpha_losses)))
+            min_combined_losses.append(min_combined_loss)
+            # min_policy_losses.append(np.amin(np.array(policy_losses)))
+            # min_alpha_losses.append(np.amin(np.array(alpha_losses)))
 
         next_state, reward, done, info = env.step(action)
 
