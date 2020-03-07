@@ -57,7 +57,7 @@ def train(response_type_str):
                 # critic_2_losses = []
                 # policy_losses = []
                 # alpha_losses = []
-                for training_iter in range(1000):
+                for training_iter in range(50000):
                     print("Training Iter: " + str(training_iter))
                     q1_loss, q2_loss, policy_loss, alpha_loss = agent.update_params(batch_size)
                     # critic_1_losses.append(q1_loss)
