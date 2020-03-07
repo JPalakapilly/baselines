@@ -112,4 +112,4 @@ class Reward():
 
 		cost_difference = ideal_cost - current_cost
 		
-		return cost_difference
+		return cost_difference / np.abs(cost_difference)
