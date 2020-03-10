@@ -94,7 +94,7 @@ class Reward():
 		
 		#TODO ENSURE THAT COST DIFFERENCE IS < 0
 		if cost_difference < 0: 
-			return -np.log(-cost_difference)
+			return np.log(-cost_difference)
 		else:
 			print("WEIRD REWARD ALERT. IDEAL COST >= CURRENT COST. returning reward of 10")
 			return 10

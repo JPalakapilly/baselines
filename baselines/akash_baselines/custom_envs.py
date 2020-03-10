@@ -141,7 +141,7 @@ class BehavSimEnv(gym.Env):
             observation = np.concatenate((observation, self.prev_energy))
         reward = self._get_reward(prev_observation, energy_consumptions)
         info = {}
-        return observation, reward, done, info
+        return energy_consumptions["avg"], reward, done, info
 
     def _points_from_action(self, action):
         if self.action_space_string == "discrete":
@@ -192,7 +192,7 @@ class BehavSimEnv(gym.Env):
                 player_ideal_demands = player_reward.ideal_use_calculation()
                 # either distance from ideal or cost distance
                 # distance = player_reward.neg_distance_from_ideal(player_ideal_demands)
-                reward = player_reward.scaled_cost_distance(player_ideal_demands)
+                reward = player_reward.log_cost_distance(player_ideal_demands)
 
                 total_reward += reward
         return total_reward

@@ -11,7 +11,8 @@ class QNetwork(nn.Module):
 
         self.linear1 = nn.Linear(s_dim+a_dim,h_dim)
         self.linear2 = nn.Linear(h_dim,h_dim)
-        self.linear3 = nn.Linear(h_dim,1)
+        self.linear3 = nn.Linear(h_dim,5)
+        self.linear4= nn.Linear(h_dim,1)
 
         self.apply(init_weights)
 
@@ -19,6 +20,7 @@ class QNetwork(nn.Module):
         x = torch.cat((s,a),dim=1)
         x = F.relu(self.linear1(x))
         x = F.relu(self.linear2(x))
-        x = self.linear3(x)
+        x = F.relu(self.linear3(x))
+        x = self.linear4(x)
 
         return x

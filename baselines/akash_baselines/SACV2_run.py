@@ -9,7 +9,7 @@ replay_size = 10000
 
 total_numsteps = 60
 start_steps = 30
-batch_size = 10
+batch_size = 20
 action_star = None
 
 def moving_average(a, n=3) :
@@ -19,11 +19,11 @@ def moving_average(a, n=3) :
 
 def train(response_type_str):
     if(response_type_str == 'threshold_exp'):
-        env = BehavSimEnv()
+        env = BehavSimEnv(response='t')
     elif(response_type_str == 'sin'):
-        env = BehavSimEnv('s')
+        env = BehavSimEnv(response='s')
     else:
-        env = BehavSimEnv('l')
+        env = BehavSimEnv(response='l')
 
     rewards = []
 
@@ -31,22 +31,23 @@ def train(response_type_str):
     min_policy_losses = []
     min_alpha_losses = []
     num_iters_list = []
+    overall_best_action = None
 
     memory = ReplayMemory(replay_size)
-    print(env.action_space)
     agent = SoftActorCritic(env.observation_space, env.action_space, memory)
 
-    state = env.prices[0]
+    energy = [  0.27906955, 11.89568229, 16.33842439, 16.79616623,  17.43101761,16.15182342,  16.23424318, 15.88182418,  15.08545289, 35.60408169, 123.49742958, 148.69794274, 158.48681169, 149.13342321, 159.31826339, 157.61794021, 158.80197216, 156.49390761, 147.03826373,  70.76004005, 42.86648745,  23.13229363,  22.51826147,  16.79616935]
+    state = np.zeros(10)
     for step in range(total_numsteps):
         print("\nStep: " + str(step) + " / " + str(total_numsteps))
-
         if step < start_steps:
             action = env.action_space.sample()  # Sample random action
             next_state, reward, done, info = env.step(action)
-        
+            next_state = state
+
             memory.push((state, action, reward, next_state, done))
 
-            action_star = action
+            state = next_state
             continue
             
         else:
@@ -57,8 +58,8 @@ def train(response_type_str):
                 # critic_2_losses = []
                 # policy_losses = []
                 # alpha_losses = []
-                for training_iter in range(50000):
-                    print("Training Iter: " + str(training_iter))
+                for training_iter in range(5000):
+                    print("Step: " + str(step) + " Training Iter: " + str(training_iter))
                     q1_loss, q2_loss, policy_loss, alpha_loss = agent.update_params(batch_size)
                     # critic_1_losses.append(q1_loss)
                     # critic_2_losses.append(q2_loss)
@@ -67,20 +68,24 @@ def train(response_type_str):
 
                     combined_q_loss = q1_loss + q2_loss
                     if(combined_q_loss < min_combined_loss):
-                        action_star = agent.get_action(state)
-                        min_combined_loss = combined_q_loss
+                        curr_action = agent.get_action(state)
+                        if(not np.any(np.isnan(curr_action))):
+                            action_star = curr_action
+                            overall_best_action = action_star
+                            min_combined_loss = combined_q_loss
             #didn't know how to find min loss b/c of clipping
             # combined_q_loss = np.array(critic_1_losses) + np.array(critic_2_losses)
             # min_loss = np.amin(combined_q_loss)
             # index_of_min = np.where(combined_q_loss == min_loss)[0][0]
             # action = actions[index_of_min]
-            action = action_star
+            action = overall_best_action
             
             min_combined_losses.append(min_combined_loss)
             # min_policy_losses.append(np.amin(np.array(policy_losses)))
             # min_alpha_losses.append(np.amin(np.array(alpha_losses)))
 
         next_state, reward, done, info = env.step(action)
+        next_state = state
 
         memory.push((state, action, reward, next_state, done))
 
@@ -90,7 +95,8 @@ def train(response_type_str):
         rewards = [r[0] if r is np.ndarray else r for r in rewards]
         print("--------" * 10)
     
-    plt.figure(0)
+    
+    plt.figure()
     plt.plot(rewards, label='normal reward')
     plt.plot(moving_average(rewards),label='Moving Avg')
     plt.title("Rewards of SAC V2 (Trained on Year/Overfitting Idea) " + response_type_str)
@@ -99,7 +105,7 @@ def train(response_type_str):
     plt.ylabel("Reward")
     plt.savefig(response_type_str + '_training.png')
 
-    plt.figure(1)
+    plt.figure()
     plt.plot(min_combined_losses)
     plt.xlabel('Day of the Month (1000 Training iters, used best action')
     plt.ylabel("Combined Q1+Q2 loss")
@@ -111,3 +117,5 @@ def train(response_type_str):
 
 #Training Thresh-Exp
 train('threshold_exp')
+train('sin')
+train('linear')
