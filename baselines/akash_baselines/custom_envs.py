@@ -63,6 +63,7 @@ class BehavSimEnv(gym.Env):
             # SET FIXED DAY HERE
             day = 49
             price = price_signal(day + 1)
+            price = np.maximum([0.01], price)
             price = np.array(price[8:18])
             for i in range(365):
                 all_prices.append(price)
@@ -72,7 +73,7 @@ class BehavSimEnv(gym.Env):
                 price = price_signal(day + 1)
                 price = np.array(price[8:18])
                 # put a floor on the prices so we don't have negative prices
-                #price = np.maximum([0.01], price)
+                price = np.maximum([0.01], price)
                 all_prices.append(price)
                 day += 1
 
@@ -125,7 +126,7 @@ class BehavSimEnv(gym.Env):
     def step(self, action):
         prev_observation = self.prices[self.day]
         self.day = (self.day + 1) % 365
-        #self.cur_iter += 1
+        # self.cur_iter += 1
         done = True
         observation = self.prices[self.day]
         # if self.cur_iter > 0:
@@ -141,7 +142,7 @@ class BehavSimEnv(gym.Env):
             observation = np.concatenate((observation, self.prev_energy))
         reward = self._get_reward(prev_observation, energy_consumptions)
         info = {}
-        return energy_consumptions["avg"], reward, done, info
+        return observation, reward, done, info
 
     def _points_from_action(self, action):
         if self.action_space_string == "discrete":
@@ -192,7 +193,7 @@ class BehavSimEnv(gym.Env):
                 player_ideal_demands = player_reward.ideal_use_calculation()
                 # either distance from ideal or cost distance
                 # distance = player_reward.neg_distance_from_ideal(player_ideal_demands)
-                reward = player_reward.log_cost_distance(player_ideal_demands)
+                reward = player_reward.scaled_cost_distance(player_ideal_demands)
 
                 total_reward += reward
         return total_reward
