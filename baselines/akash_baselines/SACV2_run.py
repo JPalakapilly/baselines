@@ -19,14 +19,14 @@ def moving_average(a, n=3) :
 
 def train(response_type_str):
     if(response_type_str == 'threshold_exp'):
-        env2 = BehavSimEnv(response='t')
-        env = BehavSimEnv(one_day = True, response='t')
+        env = BehavSimEnv(response='t')
+        #env = BehavSimEnv(one_day = True, response='t')
     elif(response_type_str == 'sin'):
-        env2 = BehavSimEnv(response='s')
-        env = BehavSimEnv(one_day = True, response='s')
+        env = BehavSimEnv(response='s')
+        #env = BehavSimEnv(one_day = True, response='s')
     else:
-        env2 = BehavSimEnv(response='l')
-        env = BehavSimEnv(one_day = True, response='l')
+        env = BehavSimEnv(response='l')
+        #env = BehavSimEnv(one_day = True, response='l')
 
     rewards = []
     rewards2 = []
@@ -48,8 +48,7 @@ def train(response_type_str):
         if step < start_steps:
             action = env.action_space.sample()  # Sample random action
             next_state, reward, done, info = env.step(action)
-            useless = env2.step(action)
-            next_state = state
+            # useless = env2.step(action)
 
             memory.push((state, action, reward, next_state, done))
 
@@ -57,13 +56,13 @@ def train(response_type_str):
             continue
             
         else:
-            min_combined_loss = 1e10
+            min_combined_loss = 0
             if(memory.get_len() > batch_size):
                 # critic_1_losses = []
                 # critic_2_losses = []
                 # policy_losses = []
                 # alpha_losses = []
-                for training_iter in range(2000):
+                for training_iter in range(50):
                     print("Step: " + str(step) + " Training Iter: " + str(training_iter))
                     q1_loss, q2_loss, policy_loss, alpha_loss = agent.update_params(batch_size)
                     # critic_1_losses.append(q1_loss)
@@ -72,61 +71,61 @@ def train(response_type_str):
                     # alpha_losses.append(alpha_loss)
 
                     combined_q_loss = q1_loss + q2_loss
-                    if(combined_q_loss < min_combined_loss):
-                        curr_action = agent.get_action(state)
-                        if(not np.any(np.isnan(curr_action))):
-                            action_star = curr_action
-                            min_combined_loss = combined_q_loss
+                    # if(combined_q_loss < min_combined_loss):
+                    #     curr_action = agent.get_action(state)
+                    #     if(not np.any(np.isnan(curr_action))):
+                    #         action_star = curr_action
+                    #         min_combined_loss = combined_q_loss
             #didn't know how to find min loss b/c of clipping
             # combined_q_loss = np.array(critic_1_losses) + np.array(critic_2_losses)
             # min_loss = np.amin(combined_q_loss)
             # index_of_min = np.where(combined_q_loss == min_loss)[0][0]
             # action = actions[index_of_min]
-            action = action_star
+            action_star = agent.get_action(state)
+            min_combined_loss = combined_q_loss
             
             min_combined_losses.append(min_combined_loss)
             # min_policy_losses.append(np.amin(np.array(policy_losses)))
             # min_alpha_losses.append(np.amin(np.array(alpha_losses)))
 
-        next_state, reward, done, info = env.step(action)
-        next_state = state
+        next_state, reward, done, info = env.step(action_star)
+        #next_state = state
 
         memory.push((state, action, reward, next_state, done))
         
-        useless_next_state, reward2, useless_done, useless_info = env2.step(action)
+        #useless_next_state, reward2, useless_done, useless_info = env2.step(action)
 
         state = next_state
         action_star = action
         rewards.append(reward)
-        rewards2.append(reward2)
+        #rewards2.append(reward2)
         rewards = [r[0] if r is np.ndarray else r for r in rewards]
-        rewards2 = [r[0] if r is np.ndarray else r for r in rewards2]
+        #rewards2 = [r[0] if r is np.ndarray else r for r in rewards2]
         print("--------" * 10)
     
     
     plt.figure()
-    plt.plot(rewards, label='normal reward')
+    plt.plot(rewards, label='reward')
     plt.plot(moving_average(rewards),label='Moving Avg')
-    plt.title("Rewards of SAC V2 (Trained on One_Day " + response_type_str)
+    plt.title("Rewards of SAC V2 (Trained Day-to-Day " + response_type_str, pad = 20.0)
     plt.legend()
     plt.xlabel("Day Number")
     plt.ylabel("Reward")
     plt.savefig(response_type_str + '_training.png')
 
-    plt.figure()
-    plt.plot(rewards2, label='normal reward')
-    plt.plot(moving_average(rewards),label='Moving Avg')
-    plt.title("Daily Response (Trained on One_Day " + response_type_str)
-    plt.legend()
-    plt.xlabel("Day Number")
-    plt.ylabel("Reward")
-    plt.savefig(response_type_str + '_results.png')
+    # plt.figure()
+    # plt.plot(rewards2, label='true reward')
+    # plt.title("Daily Response (Trained on One_Day " + response_type_str, pad = 20.0)
+    # plt.legend()
+    # plt.xlabel("Day Number")
+    # plt.ylabel("Reward")
+    # plt.savefig(response_type_str + '_results.png')
 
     plt.figure()
     plt.plot(min_combined_losses)
-    plt.xlabel('Day of the Month (1000 Training iters, used best action')
+    plt.xlabel('Day of the Month ')
     plt.ylabel("Combined Q1+Q2 loss")
-    plt.title("Min Combined Critic Loss at each Day")
+    plt.title("Combined Critic Loss at each Day", pad = 20.0)
     plt.savefig(response_type_str + '_min_q_loss.png')
 
 
