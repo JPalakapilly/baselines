@@ -9,7 +9,7 @@ replay_size = 10000
 
 total_numsteps = 60
 start_steps = 30
-batch_size = 20
+batch_size = 5
 action_star = None
 
 def moving_average(a, n=3) :
@@ -20,13 +20,12 @@ def moving_average(a, n=3) :
 def train(response_type_str):
     if(response_type_str == 'threshold_exp'):
         env = BehavSimEnv(response='t')
-        #env = BehavSimEnv(one_day = True, response='t')
     elif(response_type_str == 'sin'):
         env = BehavSimEnv(response='s')
-        #env = BehavSimEnv(one_day = True, response='s')
+    elif(response_type_str == 'mixed'):
+        env = BehavSimEnv(response='m')
     else:
         env = BehavSimEnv(response='l')
-        #env = BehavSimEnv(one_day = True, response='l')
 
     rewards = []
     rewards2 = []
@@ -38,9 +37,7 @@ def train(response_type_str):
     overall_best_action = None
 
     memory = ReplayMemory(replay_size)
-    agent = SoftActorCritic(env.observation_space, env.action_space, memory)
 
-    energy = [  0.27906955, 11.89568229, 16.33842439, 16.79616623,  17.43101761,16.15182342,  16.23424318, 15.88182418,  15.08545289, 35.60408169, 123.49742958, 148.69794274, 158.48681169, 149.13342321, 159.31826339, 157.61794021, 158.80197216, 156.49390761, 147.03826373,  70.76004005, 42.86648745,  23.13229363,  22.51826147,  16.79616935]
     state = env.prices[0]
     action_star = None
     for step in range(total_numsteps):
@@ -56,42 +53,50 @@ def train(response_type_str):
             continue
             
         else:
-            min_combined_loss = 0
+            agent = SoftActorCritic(env.observation_space, env.action_space, memory)
             if(memory.get_len() > batch_size):
-                # critic_1_losses = []
-                # critic_2_losses = []
-                # policy_losses = []
-                # alpha_losses = []
-                for training_iter in range(50):
-                    print("Step: " + str(step) + " Training Iter: " + str(training_iter))
-                    q1_loss, q2_loss, policy_loss, alpha_loss = agent.update_params(batch_size)
-                    # critic_1_losses.append(q1_loss)
-                    # critic_2_losses.append(q2_loss)
-                    # policy_losses.append(policy_loss)
-                    # alpha_losses.append(alpha_loss)
+                critic_1_losses = [None]
+                critic_2_losses = [None]
+                policy_losses = [None]
+                alpha_losses = [None]
+                actions = []
+                for extra_train in range(100):
+                    print("--"*10)
+                    print(" Extra Train " + str(extra_train))
+                    q1_prev_loss = critic_1_losses[-1]
+                    q2_prev_loss = critic_2_losses[-1]
+                    policy_loss = policy_losses[-1]
+                    alpha_loss = alpha_losses[-1]
+                    return_update = agent.overfit_update_params(batch_size,q1_prev_loss,q2_prev_loss,policy_loss,alpha_loss)
+                    print(return_update)
+                    print("--"*10)
+                    losses = return_update[0]
+                    num_iters = return_update[1]
 
-                    combined_q_loss = q1_loss + q2_loss
-                    # if(combined_q_loss < min_combined_loss):
-                    #     curr_action = agent.get_action(state)
-                    #     if(not np.any(np.isnan(curr_action))):
-                    #         action_star = curr_action
-                    #         min_combined_loss = combined_q_loss
-            #didn't know how to find min loss b/c of clipping
-            # combined_q_loss = np.array(critic_1_losses) + np.array(critic_2_losses)
-            # min_loss = np.amin(combined_q_loss)
-            # index_of_min = np.where(combined_q_loss == min_loss)[0][0]
-            # action = actions[index_of_min]
-            action_star = agent.get_action(state)
-            min_combined_loss = combined_q_loss
+                    critic_1_loss = losses[0]
+                    critic_2_loss = losses[1]
+                    policy_loss = losses[2]
+                    alpha_loss = losses[3]
+
+                    critic_1_losses.append(critic_1_loss)
+                    critic_2_losses.append(critic_2_loss)
+                    policy_losses.append(policy_loss)
+                    alpha_losses.append(alpha_loss)
+                    num_iters_list.append(num_iters)
+                    actions.append(agent.get_action(state))
             
-            min_combined_losses.append(min_combined_loss)
+            combined_q_loss = np.array(critic_1_losses[1:]) + np.array(critic_2_losses[1:])
+            min_loss = np.amin(combined_q_loss)
+            min_combined_losses.append(min_loss)
+            index_of_min = np.where(combined_q_loss == min_loss)[0][0]
+            action = actions[index_of_min] 
             # min_policy_losses.append(np.amin(np.array(policy_losses)))
             # min_alpha_losses.append(np.amin(np.array(alpha_losses)))
 
-        next_state, reward, done, info = env.step(action_star)
+        next_state, reward, done, info = env.step(action)
         #next_state = state
 
-        memory.push((state, action, reward, next_state, done))
+        #memory.push((state, action, reward, next_state, done))
         
         #useless_next_state, reward2, useless_done, useless_info = env2.step(action)
 
@@ -106,8 +111,8 @@ def train(response_type_str):
     
     plt.figure()
     plt.plot(rewards, label='reward')
-    plt.plot(moving_average(rewards),label='Moving Avg')
-    plt.title("Rewards of SAC V2 (Trained Day-to-Day " + response_type_str, pad = 20.0)
+    #plt.plot(moving_average(rewards),label='Moving Avg')
+    plt.title("Rewards of new SAC V2 (Trained Day-to-Day " + response_type_str, pad = 20.0)
     plt.legend()
     plt.xlabel("Day Number")
     plt.ylabel("Reward")
@@ -135,3 +140,4 @@ def train(response_type_str):
 train('threshold_exp')
 train('sin')
 train('linear')
+train('mixed')

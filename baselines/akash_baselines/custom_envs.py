@@ -168,6 +168,11 @@ class BehavSimEnv(gym.Env):
                     player_energy = np.array(player.threshold_exp_response(action))
                 elif(self.response == 's'):
                     player_energy = np.array(player.sin_response(action))
+                elif(self.response == 'm'):
+                    sin_response = np.array(player.sin_response(action))
+                    thresh_response = np.array(player.threshold_exp_response(action))
+                    linear_response = np.array(player.linear_response(action))
+                    player_energy = (1/3) * (sin_response + thresh_response + linear_response)
                 else:
                     player_energy = np.array(player.linear_response(action))
 

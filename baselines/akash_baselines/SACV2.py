@@ -61,24 +61,24 @@ class SoftActorCritic(object):
         action, _, _ = self.policy_network.sample_action(state, EPSILON, MIN_LOG, MAX_LOG)
         return action.detach().cpu().numpy()[0]
     
-#     def overfit_update_params(self,batch_size, q1_prev_loss, q2_prev_loss, policy_prev_loss, alpha_prev_loss):
-#         if(q1_prev_loss == None):
-#             return (self.update_params(batch_size),1)
-#         else:
-#             num_iters = 1
+    def overfit_update_params(self,batch_size, q1_prev_loss, q2_prev_loss, policy_prev_loss, alpha_prev_loss):
+        if(q1_prev_loss == None):
+            return (self.update_params(batch_size),1)
+        else:
+            num_iters = 1
             
-#             #Stupid hack b/c this overfitting keeps switching minima
-# #             if(q1_prev_loss <= 0.05 and q2_prev_loss <= 0.05):
-# #                 return ((q1_prev_loss, q2_prev_loss, policy_prev_loss, alpha_prev_loss), 0)
+            #Stupid hack b/c this overfitting keeps switching minima
+#             if(q1_prev_loss <= 0.05 and q2_prev_loss <= 0.05):
+#                 return ((q1_prev_loss, q2_prev_loss, policy_prev_loss, alpha_prev_loss), 0)
             
-#             q1_loss, q2_loss, policy_loss, alpha_loss = self.update_params(batch_size)
-#             while(num_iters <= 100):
-#                 num_iters += 1
-#                 if(q1_loss < q1_prev_loss and q2_loss < q2_prev_loss and policy_loss <= policy_prev_loss):
-#                     return ((q1_loss, q2_loss, policy_loss, alpha_loss), num_iters)
-#                 else:
-#                     q1_loss, q2_loss, policy_loss, alpha_loss = self.update_params(batch_size)
-#             return ((q1_loss, q2_loss, policy_loss, alpha_loss), num_iters)
+            q1_loss, q2_loss, policy_loss, alpha_loss = self.update_params(batch_size)
+            while(num_iters <= 100):
+                num_iters += 1
+                if(q1_loss < q1_prev_loss and q2_loss < q2_prev_loss and policy_loss <= policy_prev_loss):
+                    return ((q1_loss, q2_loss, policy_loss, alpha_loss), num_iters)
+                else:
+                    q1_loss, q2_loss, policy_loss, alpha_loss = self.update_params(batch_size)
+            return ((q1_loss, q2_loss, policy_loss, alpha_loss), num_iters)
         
     def update_params(self, batch_size):
         
