@@ -31,6 +31,7 @@ class BehavSimEnv(gym.Env):
         self.player_dict = self._create_agents()
         self.cur_iter = 0
         self.day = 0
+        self.hour = None
         self.prev_energy = np.zeros(10)#np.array([80, 120, 200, 210, 180, 250, 380, 310, 220, 140])
         print("BehavSimEnv Initialized")
 
@@ -126,11 +127,12 @@ class BehavSimEnv(gym.Env):
     def step(self, action):
         prev_observation = self.prices[self.day]
         self.day = (self.day + 1) % 365
-        # self.cur_iter += 1
+        self.cur_iter += 1
         done = True
         observation = self.prices[self.day]
-        # if self.cur_iter > 0:
+        # if self.cur_iter > 10:
         #     done = True
+        #     self.day = (self.day + 1) % 365
         # else:
         #     done = False
         points = self._points_from_action(action)
@@ -165,16 +167,16 @@ class BehavSimEnv(gym.Env):
                 # get the points output from players
                 # CHANGE PLAYER RESPONSE FN HERE
                 if(self.response == 't'):
-                    player_energy = np.array(player.threshold_exp_response(action))
+                    player_energy = np.array(player.threshold_exp_response(action, self.hour))
                 elif(self.response == 's'):
-                    player_energy = np.array(player.sin_response(action))
+                    player_energy = np.array(player.sin_response(action,self.hour))
                 elif(self.response == 'm'):
-                    sin_response = np.array(player.sin_response(action))
-                    thresh_response = np.array(player.threshold_exp_response(action))
-                    linear_response = np.array(player.linear_response(action))
+                    sin_response = np.array(player.sin_response(action,self.hour))
+                    thresh_response = np.array(player.threshold_exp_response(action,self.hour))
+                    linear_response = np.array(player.linear_response(action,self.hour))
                     player_energy = (1/3) * (sin_response + thresh_response + linear_response)
                 else:
-                    player_energy = np.array(player.linear_response(action))
+                    player_energy = np.array(player.linear_response(action,self.hour))
 
                 energy_consumptions[player_name] = player_energy
                 total_consumption += player_energy
@@ -216,70 +218,72 @@ class BehavSimEnv(gym.Env):
         pass
 
 
-class HourlySimEnv(BehavSimEnv):
-    """Custom Environment that follows gym interface"""
-    metadata = {'render.modes': ['human']}
+# class HourlySimEnv(BehavSimEnv):
+#     """Custom Environment that follows gym interface"""
+#     metadata = {'render.modes': ['human']}
 
-    def __init__(self, action_space_string="MultiDiscrete", one_day=False, energy_in_state=False):
-        self.action_length = 1
-        self.action_subspace = 3
-        self._create_action_space(action_space_string)
-        if energy_in_state:
-            self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(22,), dtype=np.float32)
-        else:
-            self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(12,), dtype=np.float32)
+#     def __init__(self, action_space_string="continuous", one_day=False, response='t', energy_in_state=False):
+#         self.action_length = 1
+#         self.action_subspace = 3
+#         self._create_action_space(action_space_string)
+#         if energy_in_state:
+#             self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(22,), dtype=np.float32)
+#         else:
+#             self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(12,), dtype=np.float32)
 
-        self.one_day = one_day
-        self.energy_in_state = energy_in_state
-        self.prices = self._get_prices(one_day)
-        assert self.prices.shape == (365, 10)
+#         self.one_day = one_day
+#         self.energy_in_state = energy_in_state
+#         self.prices = self._get_prices(one_day)
+#         assert self.prices.shape == (365, 10)
 
-        self.player_dict = self._create_agents()
-        self.cur_iter = 0
-        self.day = 0
-        self.hour = 0
+#         self.player_dict = self._create_agents()
+#         self.cur_iter = 0
+#         self.day = 0
+#         self.hour = 0
+#         self.response = response
 
-        #TODO sample from wg1.txt
-        self.prev_energy = [80, 120, 200, 210, 180, 250, 380, 310, 220, 140]
-        self.prev_point = []
-        print("HourlySimEnv Initialized")
+#         #TODO sample from wg1.txt
+#         self.prev_energy = [  0.27906955, 11.89568229, 16.33842439, 16.79616623,  17.43101761,16.15182342,  16.23424318, 15.88182418,  15.08545289, 35.60408169, 123.49742958, 148.69794274, 158.48681169, 149.13342321, 159.31826339, 157.61794021, 158.80197216, 156.49390761, 147.03826373,  70.76004005, 42.86648745,  23.13229363,  22.51826147,  16.79616935]
+#         self.prev_point = []
+#         print("HourlySimEnv Initialized")
 
-    def step(self, action):
+#     def step(self, action):
         
-        #self.day = (self.day + 1) % 365
-        self.hour += 1
-        self.cur_iter += 1
-        point = self._points_from_action(action)
-        self.prev_points.append(point)
+#         #self.day = (self.day + 1) % 365
+#         self.hour += 1
+#         self.cur_iter += 1
+#         point = self._points_from_action(action)
+#         self.prev_point.append(point)
         
-        if self.hour == 10:
-            assert len(self.prev_points) == 10
-            prev_observation = self.prices[self.day]
-            points = np.squeeze(np.array(self.prev_points))
-            energy_consumptions = self._simulate_humans(prev_observation, points)
-            # HACK ALERT. USING AVG ENERGY CONSUMPTION FOR STATE SPACE. this will not work if people are not all the same
-            self.prev_energy = energy_consumptions["avg"]
-            reward = self._get_reward(prev_observation, energy_consumptions)
-            self.day = (self.day + 1) % 365
-            done = True
-        else:
-            reward = np.array(0)
-            done = False
+#         if self.hour == 10:
+#             #assert len(self.prev_point) == 10
+#             prev_observation = self.prices[self.day]
+#             points = np.squeeze(np.array(self.prev_point))
+#             energy_consumptions = self._simulate_humans(prev_observation, points)
+#             # HACK ALERT. USING AVG ENERGY CONSUMPTION FOR STATE SPACE. this will not work if people are not all the same
+#             self.prev_energy = energy_consumptions["avg"]
+#             reward = self._get_reward(prev_observation, energy_consumptions)
+#             self.day = (self.day + 1) % 365
+#             self.hour = 0
+#             done = True
+#         else:
+#             reward = np.array(0)
+#             done = False
 
-        if self.energy_in_state:
-            observation = np.concatenate((self.prices[self.day], self.prev_energy, np.array(self.prev_points[-1]), np.array([self.hour])))
-        else:
-            observation = np.concatenate((self.prices[self.day], np.array(self.prev_points[-1]), np.array([self.hour])))
+#         if self.energy_in_state:
+#             observation = np.concatenate((self.prices[self.day], self.prev_energy, np.array(self.prev_point[-1]), np.array([self.hour])))
+#         else:
+#             observation = np.concatenate((self.prices[self.day], np.array(self.prev_point[-1]), np.array([self.hour])))
 
         
-        info = {}
-        return observation, reward, done, info
+#         info = {}
+#         return observation, reward, done, info
   
-    def reset(self):
-        self.hour = 0
-        self.prev_points = []
-        if self.energy_in_state:
-            observation = np.concatenate((self.prices[self.day], self.prev_energy, np.array([0]), np.array([self.hour])))
-        else:
-            observation = np.concatenate((self.prices[self.day], np.array([0]), np.array([self.hour])))
-        return observation
+#     def reset(self):
+#         self.hour = 0
+#         self.prev_point = []
+#         if self.energy_in_state:
+#             observation = np.concatenate((self.prices[self.day], self.prev_energy, np.array([0]), np.array([self.hour])))
+#         else:
+#             observation = np.concatenate((self.prices[self.day], np.array([0]), np.array([self.hour])))
+#         return observation
