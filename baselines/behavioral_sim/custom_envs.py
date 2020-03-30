@@ -58,7 +58,7 @@ class BehavSimEnv(gym.Env):
         if one_day:
             # if repeating the same day, then use a random day. 
             # SET FIXED DAY HERE
-            day = 49
+            day = 184
             price = utils.price_signal(day + 1)
             price = np.array(price[8:18])
             for i in range(365):
@@ -69,7 +69,7 @@ class BehavSimEnv(gym.Env):
                 price = utils.price_signal(day + 1)
                 price = np.array(price[8:18])
                 # put a floor on the prices so we don't have negative prices
-                price = np.maximum([0.01], price)
+                # price = np.maximum([0.01], price)
                 all_prices.append(price)
                 day += 1
 
@@ -84,19 +84,6 @@ class BehavSimEnv(gym.Env):
               agent_dict: dictionary of the agents
         """
 
-        # TODO: This needs to be updated
-
-        # Skipping rows b/c data is converted to PST, which is 16hours behind
-        # so first 10 hours are actually 7/29 instead of 7/30
-        
-        # baseline_energy1 = convert_times(pd.read_csv("wg1.txt", sep = "\t", skiprows=range(1, 41)))
-        # baseline_energy2 = convert_times(pd.read_csv("wg2.txt", sep = "\t", skiprows=range(1, 41)))
-        # baseline_energy3 = convert_times(pd.read_csv("wg3.txt", sep = "\t", skiprows=range(1, 41)))
-
-        # be1 = change_wg_to_diff(baseline_energy1)
-        # be2 = change_wg_to_diff(baseline_energy2)
-        # be3 = change_wg_to_diff(baseline_energy3)
-
         player_dict = {}
 
         # I dont trust the data at all
@@ -108,14 +95,14 @@ class BehavSimEnv(gym.Env):
 
         my_baseline_energy = pd.DataFrame(data={"net_energy_use": working_hour_energy})
 
-        player_dict['player_0'] = DeterministicFunctionPerson(my_baseline_energy, points_multiplier = 10)
-        player_dict['player_1'] = DeterministicFunctionPerson(my_baseline_energy, points_multiplier = 10)
-        player_dict['player_2'] = DeterministicFunctionPerson(my_baseline_energy, points_multiplier = 10)
-        player_dict['player_3'] = DeterministicFunctionPerson(my_baseline_energy, points_multiplier = 10)
-        player_dict['player_4'] = DeterministicFunctionPerson(my_baseline_energy, points_multiplier = 10)
-        player_dict['player_5'] = DeterministicFunctionPerson(my_baseline_energy, points_multiplier = 10)
-        player_dict['player_6'] = DeterministicFunctionPerson(my_baseline_energy, points_multiplier = 10)
-        player_dict['player_7'] = DeterministicFunctionPerson(my_baseline_energy, points_multiplier = 10)
+        player_dict['player_0'] = MananPerson1(my_baseline_energy, points_multiplier = 10)
+        player_dict['player_1'] = MananPerson1(my_baseline_energy, points_multiplier = 10)
+        player_dict['player_2'] = MananPerson1(my_baseline_energy, points_multiplier = 10)
+        player_dict['player_3'] = MananPerson1(my_baseline_energy, points_multiplier = 10)
+        player_dict['player_4'] = MananPerson1(my_baseline_energy, points_multiplier = 10)
+        player_dict['player_5'] = MananPerson1(my_baseline_energy, points_multiplier = 10)
+        player_dict['player_6'] = MananPerson1(my_baseline_energy, points_multiplier = 10)
+        player_dict['player_7'] = MananPerson1(my_baseline_energy, points_multiplier = 10)
 
         return player_dict
 
@@ -159,7 +146,8 @@ class BehavSimEnv(gym.Env):
                 player = self.player_dict[player_name]
                 # get the points output from players
                 # CHANGE PLAYER RESPONSE FN HERE
-                player_energy = np.array(player.threshold_exp_response(action))
+                # player_energy = np.array(player.threshold_exp_response(action))
+                player_energy = player.predicted_energy_behavior(action, self.day % 5)
                 energy_consumptions[player_name] = player_energy
                 total_consumption += player_energy
                 num_players += 1
@@ -182,7 +170,7 @@ class BehavSimEnv(gym.Env):
                 player_ideal_demands = player_reward.ideal_use_calculation()
                 # either distance from ideal or cost distance
                 # distance = player_reward.neg_distance_from_ideal(player_ideal_demands)
-                reward = player_reward.scaled_cost_distance(player_ideal_demands)
+                reward = player_reward.cost_distance(player_ideal_demands)
 
                 total_reward += reward
         return total_reward
@@ -267,3 +255,4 @@ class HourlySimEnv(BehavSimEnv):
         else:
             observation = np.concatenate((self.prices[self.day], np.array([0]), np.array([self.hour])))
         return observation
+
