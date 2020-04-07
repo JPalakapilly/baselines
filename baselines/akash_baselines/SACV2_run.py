@@ -25,13 +25,13 @@ def moving_average(a, n=3) :
 def train(response_type_str):
     if(response_type_str == 'threshold_exp'):
         #env = HourlySimEnv(response='t', one_day=True)
-        env2 = HourlySimEnv(response='t', one_day=False)
+        env2 = HourlySimEnv(response='t', one_day=False, energy_in_state=True)
     elif(response_type_str == 'sin'):
         #env = HourlySimEnv(response='s',one_day=True)
-        env2 = HourlySimEnv(response='w', one_day=False)
+        env2 = HourlySimEnv(response='w', one_day=False, energy_in_state=True)
     else:
         #env = HourlySimEnv(response='l',one_day=True)
-        env2 = HourlySimEnv(response='l', one_day=False)
+        env2 = HourlySimEnv(response='l', one_day=False, energy_in_state=True)
 
     rewards = []
     rewards2 = []
@@ -46,7 +46,7 @@ def train(response_type_str):
     env = env2
     action_star = None
     second_half = np.array([0,0])
-    state = np.concatenate((env.prices[0], second_half))
+    state = np.concatenate((env.prices[0], env.prev_energy, second_half))
     agent = SoftActorCritic(env.observation_space, env.action_space, memory)
     while(env.day <= 60):
         step = env.day
