@@ -44,7 +44,9 @@ class Reward():
 		# constraints = [np.ones(self._num_timesteps).T * demands == total_demand]
 		for i in range(self._num_timesteps):
 			constraints += [demands[i] <= max_demand]
-			constraints += [min_demand <= demands[i]]	
+			constraints += [min_demand <= demands[i]]
+			# if i != 0:
+			# 	constraints += [cvx.abs(demands[i] - demands[i-1]) <= 100]	
 
 
 		objective = cvx.Minimize(demands.T * prices)
@@ -107,9 +109,10 @@ class Reward():
 		returns: 
 			a cost-based distance metric normalized by total ideal cost
 		"""
+		
 		current_cost = np.dot(self.prices, self.energy_use)
 		ideal_cost = np.dot(self.prices, ideal_demands)
 
 		cost_difference = ideal_cost - current_cost
-		
+
 		return cost_difference/ideal_cost

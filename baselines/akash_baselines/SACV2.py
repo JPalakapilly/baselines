@@ -29,6 +29,7 @@ MAX_LOG = 2
 class SoftActorCritic(object):
     def __init__(self,observation_space,action_space, memory):
         self.s_dim = observation_space.shape[0]
+        print(observation_space.shape)
         self.a_dim = action_space.shape[0]
         self.alpha = ALPHA
 

@@ -1,25 +1,36 @@
 import gym
 from gym import spaces
 import numpy as np
-from baselines.behavioral_sim import utils
-from baselines.behavioral_sim.agents import *
-from baselines.behavioral_sim.reward import Reward
+from behavioral_sim import utils
+from behavioral_sim.agents import *
+from behavioral_sim.reward import Reward
 
 
 class BehavSimEnv(gym.Env):
     """Custom Environment that follows gym interface"""
     metadata = {'render.modes': ['human']}
 
-    def __init__(self, action_space_string="MultiDiscrete", one_day=False, energy_in_state=False):
+    def __init__(self, action_space_string="continuous", one_day=False, energy_in_state=False, 
+    response ='t', yesterday_in_state = False):
         super(BehavSimEnv, self).__init__()
         self.action_length = 10
         self.action_subspace = 3
         self._create_action_space(action_space_string)
-        if energy_in_state:
-            self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(20,), dtype=np.float32)
-        else:
-            self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(10,), dtype=np.float32)
+        self.yesterday_in_state = yesterday_in_state
+        self.prev_ideal = []
+        if(yesterday_in_state):
+            if(energy_in_state):
+                self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(40,), dtype=np.float32)
+            else:
+                self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(30,), dtype=np.float32)
 
+        else:
+            if energy_in_state:
+                self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(20,), dtype=np.float32)
+            else:
+                self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(10,), dtype=np.float32)
+        
+        self.response = response
         self.one_day = one_day
         self.energy_in_state = energy_in_state
         self.prices = self._get_prices(one_day)
@@ -58,9 +69,11 @@ class BehavSimEnv(gym.Env):
         if one_day:
             # if repeating the same day, then use a random day. 
             # SET FIXED DAY HERE
-            day = 49
+            day = 184
             price = utils.price_signal(day + 1)
             price = np.array(price[8:18])
+            price = np.maximum([0.01], price)
+            naive_reward = Reward([], price, 35, 300)
             for i in range(365):
                 all_prices.append(price)
         else:
@@ -84,19 +97,6 @@ class BehavSimEnv(gym.Env):
               agent_dict: dictionary of the agents
         """
 
-        # TODO: This needs to be updated
-
-        # Skipping rows b/c data is converted to PST, which is 16hours behind
-        # so first 10 hours are actually 7/29 instead of 7/30
-        
-        # baseline_energy1 = convert_times(pd.read_csv("wg1.txt", sep = "\t", skiprows=range(1, 41)))
-        # baseline_energy2 = convert_times(pd.read_csv("wg2.txt", sep = "\t", skiprows=range(1, 41)))
-        # baseline_energy3 = convert_times(pd.read_csv("wg3.txt", sep = "\t", skiprows=range(1, 41)))
-
-        # be1 = change_wg_to_diff(baseline_energy1)
-        # be2 = change_wg_to_diff(baseline_energy2)
-        # be3 = change_wg_to_diff(baseline_energy3)
-
         player_dict = {}
 
         # I dont trust the data at all
@@ -117,24 +117,37 @@ class BehavSimEnv(gym.Env):
         player_dict['player_6'] = DeterministicFunctionPerson(my_baseline_energy, points_multiplier = 10)
         player_dict['player_7'] = DeterministicFunctionPerson(my_baseline_energy, points_multiplier = 10)
 
+        # player_dict['player_0'] = MananPerson1(my_baseline_energy, points_multiplier = 10)
+        # player_dict['player_1'] = MananPerson1(my_baseline_energy, points_multiplier = 10)
+        # player_dict['player_2'] = MananPerson1(my_baseline_energy, points_multiplier = 10)
+        # player_dict['player_3'] = MananPerson1(my_baseline_energy, points_multiplier = 10)
+        # player_dict['player_4'] = MananPerson1(my_baseline_energy, points_multiplier = 10)
+        # player_dict['player_5'] = MananPerson1(my_baseline_energy, points_multiplier = 10)
+        # player_dict['player_6'] = MananPerson1(my_baseline_energy, points_multiplier = 10)
+        # player_dict['player_7'] = MananPerson1(my_baseline_energy, points_multiplier = 10)
+
         return player_dict
 
     def step(self, action):
         prev_observation = self.prices[self.day]
         self.day = (self.day + 1) % 365
         self.cur_iter += 1
-        observation = self.prices[self.day]
+        next_observation = self.prices[self.day]
         if self.cur_iter > 0:
             done = True
         else:
             done = False
         points = self._points_from_action(action)
         energy_consumptions = self._simulate_humans(prev_observation, points)
-
+        if(self.yesterday_in_state):
+            observation = np.concatenate((prev_observation, self.prev_ideal))
         if self.energy_in_state:
             # HACK ALERT. USING AVG ENERGY CONSUMPTION FOR STATE SPACE. this will not work if people are not all the same
             self.prev_energy = energy_consumptions["avg"]
-            observation = np.concatenate((observation, self.prev_energy))
+            observation = np.concatenate((self.prev_energy, next_observation))
+        else:
+            observation = np.concatenate((observation, next_observation))
+
         reward = self._get_reward(prev_observation, energy_consumptions)
         info = {}
         return observation, reward, done, info
@@ -159,7 +172,14 @@ class BehavSimEnv(gym.Env):
                 player = self.player_dict[player_name]
                 # get the points output from players
                 # CHANGE PLAYER RESPONSE FN HERE
-                player_energy = np.array(player.threshold_exp_response(action))
+                # player_energy = np.array(player.threshold_exp_response(action))
+                #player_energy = player.predicted_energy_behavior(action, self.day % 5)
+                if(self.response == 't'):
+                    player_energy = player.threshold_exp_response(action)
+                elif(self.response == 's'):
+                    player_energy = player.sin_response(action)
+                else:
+                    player_energy = player.linear_response(action)
                 energy_consumptions[player_name] = player_energy
                 total_consumption += player_energy
                 num_players += 1
@@ -180,6 +200,7 @@ class BehavSimEnv(gym.Env):
                 player_energy = energy_consumptions[player_name]
                 player_reward = Reward(player_energy, prev_observation, player_min_demand, player_max_demand)
                 player_ideal_demands = player_reward.ideal_use_calculation()
+                self.prev_ideal = player_ideal_demands
                 # either distance from ideal or cost distance
                 # distance = player_reward.neg_distance_from_ideal(player_ideal_demands)
                 reward = player_reward.scaled_cost_distance(player_ideal_demands)
@@ -204,15 +225,26 @@ class HourlySimEnv(BehavSimEnv):
     """Custom Environment that follows gym interface"""
     metadata = {'render.modes': ['human']}
 
-    def __init__(self, action_space_string="MultiDiscrete", one_day=False, energy_in_state=False):
+    def __init__(self, action_space_string="continuous", one_day=False, energy_in_state=False, 
+    response = 't', yesterday_in_state = False):
         self.action_length = 1
         self.action_subspace = 3
         self._create_action_space(action_space_string)
-        if energy_in_state:
-            self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(22,), dtype=np.float32)
-        else:
-            self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(12,), dtype=np.float32)
+        self.yesterday_in_state = yesterday_in_state
+        self.prev_ideal = []
+        if(yesterday_in_state):
+            if(energy_in_state):
+                self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(42,), dtype=np.float32)
+            else:
+                self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(32,), dtype=np.float32)
 
+        else:
+            if energy_in_state:
+                self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(22,), dtype=np.float32)
+            else:
+                self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(12,), dtype=np.float32)
+        
+        self.response = response
         self.one_day = one_day
         self.energy_in_state = energy_in_state
         self.prices = self._get_prices(one_day)
@@ -225,7 +257,7 @@ class HourlySimEnv(BehavSimEnv):
 
         #TODO sample from wg1.txt
         self.prev_energy = [80, 120, 200, 210, 180, 250, 380, 310, 220, 140]
-        self.prev_point = []
+        self.prev_points = [0]
         print("HourlySimEnv Initialized")
 
     def step(self, action):
@@ -235,25 +267,33 @@ class HourlySimEnv(BehavSimEnv):
         self.cur_iter += 1
         point = self._points_from_action(action)
         self.prev_points.append(point)
-        
+        second_half = np.array([self.prev_points[-1],self.hour],dtype=np.float32)
+        prev_observation = self.prices[self.day]
         if self.hour == 10:
-            assert len(self.prev_points) == 10
-            prev_observation = self.prices[self.day]
-            points = np.squeeze(np.array(self.prev_points))
+            #assert len(self.prev_points) == 11
+            points = np.squeeze(np.array(self.prev_points[1:]))
             energy_consumptions = self._simulate_humans(prev_observation, points)
             # HACK ALERT. USING AVG ENERGY CONSUMPTION FOR STATE SPACE. this will not work if people are not all the same
             self.prev_energy = energy_consumptions["avg"]
             reward = self._get_reward(prev_observation, energy_consumptions)
             self.day = (self.day + 1) % 365
+            self.reset()
             done = True
         else:
             reward = np.array(0)
             done = False
-
-        if self.energy_in_state:
-            observation = np.concatenate((self.prices[self.day], self.prev_energy, np.array(self.prev_points[-1]), np.array([self.hour])))
+        
+        if self.yesterday_in_state:
+            observation = np.concatenate((prev_observation, self.prev_ideal))
+            if(self.energy_in_state):
+                observation = np.concatenate((observation, self.prev_energy, second_half))
+            else:
+                observation = np.concatenate((observation, second_half))
         else:
-            observation = np.concatenate((self.prices[self.day], np.array(self.prev_points[-1]), np.array([self.hour])))
+            if self.energy_in_state:
+                observation = np.concatenate((self.prices[self.day], self.prev_energy, second_half))
+            else:
+                observation = np.concatenate((self.prices[self.day], second_half))
 
         
         info = {}
@@ -261,7 +301,7 @@ class HourlySimEnv(BehavSimEnv):
   
     def reset(self):
         self.hour = 0
-        self.prev_points = []
+        self.prev_points = [0]
         if self.energy_in_state:
             observation = np.concatenate((self.prices[self.day], self.prev_energy, np.array([0]), np.array([self.hour])))
         else:
