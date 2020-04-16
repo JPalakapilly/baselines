@@ -23,16 +23,23 @@ def moving_average(a, n=3) :
     ret[n:] = ret[n:] - ret[:-n]
     return ret[n - 1:] / n
 
-def train(response_type_str, extra_train):
+def train(response_type_str, extra_train, energy=False, day_of_week=False):
     if(response_type_str == 'threshold_exp'):
         #env = HourlySimEnv(response='t', one_day=True, energy_in_state=False)
-        env2 = HourlySimEnv(response='t', one_day=False, energy_in_state=False, yesterday_in_state=False)
+        env2 = HourlySimEnv(response='t', one_day=False, energy_in_state=energy, yesterday_in_state=False,
+                            day_of_week = day_of_week)
     elif(response_type_str == 'sin'):
         #env = HourlySimEnv(response='s',one_day=True, energy_in_state=False)
-        env2 = HourlySimEnv(response='s', one_day=False, energy_in_state=False, yesterday_in_state=False)
+        env2 = HourlySimEnv(response='s', one_day=False, energy_in_state=energy, yesterday_in_state=False,
+                            day_of_week = day_of_week)
+    elif(response_type_str == 'mixed'):
+        #env = HourlySimEnv(response='s',one_day=True, energy_in_state=False)
+        env2 = HourlySimEnv(response='m', one_day=False, energy_in_state=energy, yesterday_in_state=False,
+                            day_of_week = day_of_week)
     else:
         #env = HourlySimEnv(response='l',one_day=True, energy_in_state=False)
-        env2 = HourlySimEnv(response='l', one_day=False, energy_in_state=False,yesterday_in_state=False)
+        env2 = HourlySimEnv(response='l', one_day=False, energy_in_state=energy,yesterday_in_state=False,
+                            day_of_week = day_of_week)
 
     rewards = []
     rewards2 = []
@@ -46,7 +53,6 @@ def train(response_type_str, extra_train):
     memory = ReplayMemory(replay_size)
     env = env2
     action_star = []
-    second_half = np.array([0,0])
     state = None
     agent = SoftActorCritic(env.observation_space, env.action_space, memory)
     actions_2_save = []
@@ -129,20 +135,20 @@ def train(response_type_str, extra_train):
             #rewards2 = [r[0] if r is np.ndarray else r for r in rewards2]
             print("--------" * 10)
     
-    return sum(rewards)
+    #return sum(rewards)
     # action_energy_pair = list(zip(actions_2_save,energy_usage))
     # df = pd.DataFrame(action_energy_pair, 
     #            columns =['Action Vector', 'Energy Used']) 
     # df.to_csv("action_energy_pair_" + response_type_str + "_extratrain_"+ str(extra_train) + ".csv")
     
-    # plt.figure()
-    # plt.plot(rewards, label='reward')
-    # plt.plot(moving_average(rewards),label='Moving Avg')
-    # plt.title("Rewards (Daily " + response_type_str + '| Total = ' + str(sum(rewards)), pad = 20.0)
-    # plt.legend()
-    # plt.xlabel("Day Number")
-    # plt.ylabel("Reward")
-    # plt.savefig(response_type_str + '_training' + '_extratrain_' + str(extra_train) + '.png')
+    plt.figure()
+    plt.plot(rewards, label='reward')
+    plt.plot(moving_average(rewards),label='Moving Avg')
+    plt.title("Rewards (Daily " + response_type_str + '| Total = ' + str(sum(rewards)), pad = 20.0)
+    plt.legend()
+    plt.xlabel("Day Number")
+    plt.ylabel("Reward")
+    plt.savefig(response_type_str +'_energy=' + str(energy) +'_training' + '_extratrain_' + str(extra_train) + '.png')
 
     # # # plt.figure()
     # # # plt.plot(rewards2, label='true reward')
@@ -153,34 +159,45 @@ def train(response_type_str, extra_train):
     # # # plt.ylabel("Reward")
     # # # plt.savefig(response_type_str + '_results' + '_extratrain_' + str(extra_train) + '.png')
 
-    # plt.figure()
-    # plt.plot(min_combined_losses)
-    # plt.xlabel('Iteration ')
-    # plt.ylabel("Combined Q1+Q2 loss")
-    # plt.title("Combined Critic Loss at each hour", pad = 20.0)
-    # plt.savefig(response_type_str + '_min_q_loss' + '_extratrain_' + str(extra_train) + '.png')
+    plt.figure()
+    plt.plot(min_combined_losses)
+    plt.xlabel('Iteration ')
+    plt.ylabel("Combined Q1+Q2 loss")
+    plt.title("Combined Critic Loss at each hour", pad = 20.0)
+    plt.savefig(response_type_str + '_energy=' + str(energy) + '_min_q_loss' + '_extratrain_' + str(extra_train) + '.png')
 
+    return sum(rewards)
 
 def train_curve_finder(max_iter):
-    def train_store_rewards(response_type_str, rewards_list):
+    def train_store_rewards(response_type_str):
+        rewards_list_e = []
+        rewards_list_no_e = []
         for iteration in range(1,max_iter,10):
             #Add error bounds, just for loop then return avg, pointwise-max/min
-            rewards_list.append(train(response_type_str,iteration))
-        return np.array(rewards_list)
-    total_rewards_thresh = train_store_rewards('threshold_exp', [])
-    total_rewards_sin = train_store_rewards('sin', [])
-    total_rewards_linear = train_store_rewards('linear', [])
+            rewards_list_e.append(train(response_type_str,iteration, energy=True, day_of_week=True))
+            rewards_list_no_e.append(train(response_type_str,iteration, energy=False, day_of_week=True))
+        return np.array(rewards_list_e), np.array(rewards_list_no_e)
+    # total_rewards_thresh_e, total_rewards_thresh_no_e = train_store_rewards('threshold_exp')
+    # total_rewards_sin_e, total_rewards_sin_no_e  = train_store_rewards('sin')
+    # total_rewards_linear_e, total_rewards_linear_no_e  = train_store_rewards('linear')
+    total_rewards_mixed_e, total_rewards_mixed_no_e  = train_store_rewards('mixed')
     
     plt.figure()
-    plt.plot(total_rewards_thresh, label='threshold-exp', color='#1B998B')
-    plt.plot(total_rewards_sin, label='sin', color = '#ED217C')
-    plt.plot(total_rewards_linear, label='linear', color = '#2D3047')
+    plt.plot(total_rewards_mixed_e, label='mixed-dow_-w/-energy', linestyle='dashed',color='#98ff98')
+    plt.plot(total_rewards_mixed_no_e, label='mixed-dow_-w/o-energy',color='#98ff98')
+    # plt.plot(total_rewards_thresh_e, label='threshold-exp-w/-energy', linestyle='dashed',color='#1B998B')
+    # plt.plot(total_rewards_sin_e, label='sin-w/-energy', linestyle='dashed',color = '#ED217C')
+    # plt.plot(total_rewards_linear_e, label='linear-w/-energy', linestyle='dashed',color = '#2D3047')
+
+    # plt.plot(total_rewards_thresh_no_e, label='threshold-exp-w/o-energy', color='#1B998B')
+    # plt.plot(total_rewards_sin_no_e, label='sin-w/o-energy', color = '#ED217C')
+    # plt.plot(total_rewards_linear_no_e, label='linear-w/o-energy', color = '#2D3047')
     #plt.plot(moving_average(rewards),label='Moving Avg')
-    plt.title("Total Rewards Learning Curve(H2H w/o energy)", pad = 20.0)
+    plt.title("Total Rewards Learning Curve(H2H)", pad = 20.0)
     plt.legend()
-    plt.xlabel("Number of Extra Trains")
+    plt.xlabel("Number of Extra Train Iterations (Factor of 10")
     plt.ylabel("Total Reward")
-    plt.savefig('total_reward_curve.png')
+    plt.savefig('total_reward_curve_mixed_h2h.png')
 
 
 
@@ -201,4 +218,4 @@ def train_curve_finder(max_iter):
 # train('sin',100)
 # train('linear',100)
 
-train_curve_finder(101)
+train_curve_finder(100)
