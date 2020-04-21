@@ -147,8 +147,11 @@ class FixedDemandPerson(Person):
 
 class DeterministicFunctionPerson(Person):
 
-	def __init__(self, baseline_energy_df, points_multiplier = 1):
+	def __init__(self, baseline_energy_df, points_multiplier = 1, response = 't'):
 		super().__init__(baseline_energy_df, points_multiplier)
+		self.response = response
+		self.day_of_week_multiplier = {'Monday':1.15, 'Tuesday':1.25, 'Wednesday':1.45,
+										'Thursday':1.1, 'Friday':1.0}
 
 	def threshold_response_func(self, points):
 		points = np.array(points) * self.points_multiplier
@@ -208,7 +211,20 @@ class DeterministicFunctionPerson(Person):
 		points_effect = points*self.points_multiplier
 		output = self.routine_output_transform(points_effect)
 		return output
+	
+	def get_response(self, points, day_of_week=None):
+		if(self.response == 't'):
+			energy_resp = self.threshold_exp_response(points)
+		elif(self.response == 's'):
+			energy_resp =  self.sin_response(points)
+		elif(self.response == 'l'):
+			energy_resp =  self.linear_response(points)
+		else:
+			raise NotImplementedError
 
+		if(day_of_week != None):
+			energy_resp = energy_resp * self.day_of_week_multiplier[day_of_week]
+		return energy_resp
 
 class MananPerson1(Person):
 
