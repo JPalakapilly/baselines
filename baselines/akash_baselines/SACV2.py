@@ -13,6 +13,8 @@ from utils import init_weights, copy_params, soft_update
 from QNetwork import QNetwork
 from PolicyNetwork import PolicyNetwork
 
+torch.manual_seed(420)
+
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 TAU = 0.005

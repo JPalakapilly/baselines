@@ -5,6 +5,7 @@ import torch.nn.functional as F
 from torch.distributions import Normal
 from utils import init_weights
 
+torch.manual_seed(420)
 class QNetwork(nn.Module):
     def __init__(self,s_dim,a_dim,h_dim):
         super(QNetwork,self).__init__()
