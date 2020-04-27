@@ -5,8 +5,6 @@ import numpy as np
 import pandas as pd
 
 import argparse
-import sys
-sys.path.append("..")
 import behavioral_sim
 from behavioral_sim.custom_envs import BehavSimEnv
 from behavioral_sim.custom_envs import HourlySimEnv
@@ -333,7 +331,7 @@ if __name__ == "__main__":
     
     print(args, end="\n\n")
 
-    train(args.response_type, 
-        args.extra_train, 
+    train(response_type_str = args.response_type, 
+        extra_train = args.extra_train, 
         energy = args.energy_in_state,
         day_of_week=args.day_of_week)
