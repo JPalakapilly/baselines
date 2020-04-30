@@ -11,7 +11,7 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 from torch.distributions import Normal
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 import torch.distributions as tdist
 import torch.optim as opt
 
