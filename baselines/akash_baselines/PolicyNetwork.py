@@ -3,7 +3,9 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 from torch.distributions import Normal
-from utils import init_weights
+import sys
+sys.path.append("..")
+from akash_baselines.utils import init_weights
 
 torch.manual_seed(420)
 class PolicyNetwork(nn.Module):

@@ -3,14 +3,16 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 from torch.distributions import Normal
-from utils import init_weights
+import sys
+sys.path.append("..")
+from akash_baselines.utils import init_weights
 
 torch.manual_seed(420)
 class QNetwork(nn.Module):
     def __init__(self,s_dim,a_dim,h_dim):
         super(QNetwork,self).__init__()
 
-        self.linear1 = nn.Linear(s_dim+a_dim,h_dim)
+        self.linear1 = nn.Linear(s_dim + a_dim,h_dim)
         self.linear2 = nn.Linear(h_dim,h_dim)
         self.linear3 = nn.Linear(h_dim,5)
         self.linear4= nn.Linear(5,1)

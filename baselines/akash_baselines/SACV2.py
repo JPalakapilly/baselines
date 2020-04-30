@@ -1,3 +1,9 @@
+"""
+Code from https://github.com/ajaysub110/sac-pytorch
+
+"""
+
+
 import numpy as np
 import math
 import torch
@@ -9,9 +15,12 @@ import matplotlib.pyplot as plt
 import torch.distributions as tdist
 import torch.optim as opt
 
-from utils import init_weights, copy_params, soft_update
-from QNetwork import QNetwork
-from PolicyNetwork import PolicyNetwork
+import sys
+sys.path.append("..")
+
+from akash_baselines.utils import init_weights, copy_params, soft_update
+from akash_baselines.QNetwork_SAC import QNetwork
+from akash_baselines.PolicyNetwork import PolicyNetwork
 
 torch.manual_seed(420)
 
@@ -31,8 +40,9 @@ MAX_LOG = 2
 class SoftActorCritic(object):
     def __init__(self,observation_space,action_space, memory):
         self.s_dim = observation_space.shape[0]
-        print(observation_space.shape)
+        print(self.s_dim)
         self.a_dim = action_space.shape[0]
+        print(self.a_dim)
         self.alpha = ALPHA
 
         # create component networks

@@ -50,11 +50,10 @@ class BCQ(object):
 
 
     def train(self, iterations, batch_size=10, discount=0.99, tau=0.005):
-        
         for it in range(iterations):
             print(str(it) + " / " + str(iterations))
             # Sample replay buffer / batch
-            state_np, next_state_np, action, reward, done = self.replay_buffer.sample(batch_size)
+            state_np,action, next_state_np, reward, done = self.replay_buffer.sample(batch_size)
             state 		= torch.FloatTensor(state_np).to(device)
             action 		= torch.FloatTensor(action).to(device)
             next_state 	= torch.FloatTensor(next_state_np).to(device)
