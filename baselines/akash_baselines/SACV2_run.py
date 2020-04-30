@@ -2,7 +2,7 @@ from Memory import ReplayMemory
 from SACV2 import SoftActorCritic
 # import matplotlib.pyplot as plt
 import numpy as np
-# import pandas as pd
+import pandas as pd
 import argparse
 import sys
 sys.path.append("..")
@@ -99,7 +99,7 @@ def train(response_type_str, extra_train, energy=False, day_of_week=False):
         if(not start_flag):
             action = env.action_space.sample()
             next_state, reward, done, info = env.step(action)
-            state = next_state
+            state = np.copy(next_state)
             start_flag = True
             continue
 
@@ -110,7 +110,7 @@ def train(response_type_str, extra_train, energy=False, day_of_week=False):
 
             memory.push((state, action, reward, next_state, done))
 
-            state = next_state
+            state = np.copy(next_state)
             continue
             
         else:
@@ -153,13 +153,12 @@ def train(response_type_str, extra_train, energy=False, day_of_week=False):
             # min_alpha_losses.append(np.amin(np.array(alpha_losses)))
 
             next_state, reward, done, info = env.step(action)
-            next_state = state
 
             memory.push((state, action, reward, next_state, done))
             
             #useless_next_state, reward2, useless_done, useless_info = env2.step(action)
 
-            state = next_state
+            state = np.copy(next_state)
 
             #old code for saving data samples
             # actions_2_save.append(action[0])
@@ -218,8 +217,8 @@ def train(response_type_str, extra_train, energy=False, day_of_week=False):
     
 
 # Function for training error bounds and total reward plots (very rough)
-def train_curve_finder(max_iter, response_type_str=None):
-    def train_store_rewards(response_type_str=None):
+def train_curve_finder(max_iter, response_type_str):
+    def train_store_rewards(response_type_str):
         sampled_days = [19,16,29,18,14,23,9,21,10,30]
         #Key = Day | Val = list for SAC Reward
         rewards_dict = {i: [] for i in range(1,max_iter,10)}
@@ -241,7 +240,7 @@ def train_curve_finder(max_iter, response_type_str=None):
         
         return rewards_dict
         
-    sac_rewards_dict = train_store_rewards(response_type_str='mixed')
+    sac_rewards_dict = train_store_rewards(response_type_str)
     for et in sac_rewards_dict.keys():
         sac_rewards_iter_et = sac_rewards_dict[et]
         print(sac_rewards_iter_et)
