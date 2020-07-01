@@ -16,19 +16,19 @@ def moving_average(a, n=3) :
 
 def train_BCQ(response_type_str='mixed', extra_train = 1):
     if(response_type_str == 'threshxold_exp'):
-        env = HourlySimEnv(response='t', one_day=False, energy_in_state=True, yesterday_in_state=False,
+        env = BehavSimEnv(response='t', one_day=False, energy_in_state=True, yesterday_in_state=False,
                             day_of_week = True)
         # env2 = BehavSimEnv(response='t', one_day=False)
     elif(response_type_str == 'sin'):
-        env = HourlySimEnv(response='s', one_day=False, energy_in_state=True, yesterday_in_state=False,
+        env = BehavSimEnv(response='s', one_day=False, energy_in_state=True, yesterday_in_state=False,
                             day_of_week = True)
         # env2 = BehavSimEnv(response='w', one_day=False)
     elif(response_type_str == 'mixed'):
-        env =HourlySimEnv(response='m', one_day=False, energy_in_state=True, yesterday_in_state=False,
+        env =BehavSimEnv(response='m', one_day=False, energy_in_state=True, yesterday_in_state=False,
                             day_of_week = True)
         # env2 = BehavSimEnv(response='m', one_day=False)
     else:
-        env = HourlySimEnv(response='t', one_day=False, energy_in_state=True, yesterday_in_state=False,
+        env = BehavSimEnv(response='t', one_day=False, energy_in_state=True, yesterday_in_state=False,
                             day_of_week = True)
         # env2 = BehavSimEnv(response='l', one_day=False)
 
@@ -40,9 +40,11 @@ def train_BCQ(response_type_str='mixed', extra_train = 1):
 
     state = None
     state_flag = True
+    actions_init = []
+    actions = []
     while (env.day <= 30):
         print("=========================")
-        print("DAY: " + str(env.day) + " | Hour : " + str(env.hour))
+        print("DAY: " + str(env.day))
         print("")
         action = env.action_space.sample()
         next_state, reward, done, info = env.step(action)
@@ -51,6 +53,7 @@ def train_BCQ(response_type_str='mixed', extra_train = 1):
             replay_buffer.add((state,action,next_state,reward,done))
         else:
             state_flag = False
+        actions_init.append(action)
         state = next_state
 
     rewards = []
@@ -59,7 +62,7 @@ def train_BCQ(response_type_str='mixed', extra_train = 1):
     # max_iters = 30
     while(env.day <= 60):
         print("=========================")
-        print("DAY: " + str(env.day) + " | Hour : " + str(env.hour))
+        print("DAY: " + str(env.day))
         print("")
         agent.train(extra_train)
         action = agent.select_action(state)
@@ -68,9 +71,11 @@ def train_BCQ(response_type_str='mixed', extra_train = 1):
         rewards.append(reward)
         # useless_next, reward2, useless_done, useless_info = env2.step(action)
         # rewards2.append(reward2)
-        action_star = action
+        action_star.append(action)
         print("=========================")
     print("DONE")
+    np.save("action_star_bcql",action_star)
+    np.save("action_init",actions_init)
     # plt.figure()
     # plt.plot(rewards, label='reward')
     # plt.plot(moving_average(rewards),label='Moving Avg')
@@ -106,7 +111,7 @@ def train_curve_finder(max_iter, response_type_str=None):
         # rewards_list_no_e = []
         # rewards_list_no_e_min = []
         # rewards_list_no_e_max = []
-        for iteration in range(51,max_iter,10):
+        for iteration in range(0,max_iter,10):
             #Add error bounds, just for loop then return avg, pointwise-max/min
             # max_reward = -1e10
             # cum_reward = 0
@@ -137,6 +142,8 @@ def train_curve_finder(max_iter, response_type_str=None):
 # train_BCQ('threshold_exp')
 # train_BCQ('sin')
 # train_BCQ('linear')
-train_curve_finder(101,'mixed')
+# train_curve_finder(101,'mixed')
+# train_BCQ(response_type_str = 'threshold_exp', 
+#                                         extra_train=1)
 
 

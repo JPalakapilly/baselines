@@ -29,7 +29,7 @@ def moving_average(a, n=3) :
     ret[n:] = ret[n:] - ret[:-n]
     return ret[n - 1:] / n
 
-def train(response_type_str, extra_train, energy=False, day_of_week=False):
+def train(response_type_str, extra_train, energy=True, day_of_week=True):
     """
     Args: 
         Response_type_str = 'theshold_exp' or 'sin' or 'mixed' or 'linear'
@@ -43,19 +43,19 @@ def train(response_type_str, extra_train, energy=False, day_of_week=False):
     """
     if(response_type_str == 'threshold_exp'):
         #env = HourlySimEnv(response='t', one_day=True, energy_in_state=False)
-        env2 = HourlySimEnv(response='t', one_day=False, energy_in_state=energy, yesterday_in_state=False,
+        env2 = BehavSimEnv(response='t', one_day=False, energy_in_state=energy, yesterday_in_state=False,
                             day_of_week = day_of_week)
     elif(response_type_str == 'sin'):
         #env = HourlySimEnv(response='s',one_day=True, energy_in_state=False)
-        env2 = HourlySimEnv(response='s', one_day=False, energy_in_state=energy, yesterday_in_state=False,
+        env2 = BehavSimEnv(response='s', one_day=False, energy_in_state=energy, yesterday_in_state=False,
                             day_of_week = day_of_week)
     elif(response_type_str == 'mixed'):
         #env = HourlySimEnv(response='s',one_day=True, energy_in_state=False)
-        env2 = HourlySimEnv(response='m', one_day=False, energy_in_state=energy, yesterday_in_state=False,
+        env2 = BehavSimEnv(response='m', one_day=False, energy_in_state=energy, yesterday_in_state=False,
                             day_of_week = day_of_week)
     elif(response_type_str == 'linear'):
         #env = HourlySimEnv(response='l',one_day=True, energy_in_state=False)
-        env2 = HourlySimEnv(response='l', one_day=False, energy_in_state=energy,yesterday_in_state=False,
+        env2 = BehavSimEnv(response='l', one_day=False, energy_in_state=energy,yesterday_in_state=False,
                             day_of_week = day_of_week)
     
     else:
@@ -95,7 +95,6 @@ def train(response_type_str, extra_train, energy=False, day_of_week=False):
     while(env.day <= 60):
         step = env.day
         print("Day: " + str(step))
-        print("Hour:" + str(env.hour))
         if(not start_flag):
             action = env.action_space.sample()
             next_state, reward, done, info = env.step(action)
@@ -140,14 +139,14 @@ def train(response_type_str, extra_train, energy=False, day_of_week=False):
                     policy_losses.append(policy_loss)
                     alpha_losses.append(alpha_loss)
                     #num_iters_list.append(num_iters)
-                    actions.append(agent.get_action(state))
+                    # actions.append(agent.get_action(state))
             
             #Finds the action corresp to the lowest combined q-loss
-            combined_q_loss = np.array(critic_1_losses[1:]) + np.array(critic_2_losses[1:])
-            min_loss = np.amin(combined_q_loss)
-            min_combined_losses.append(min_loss)
-            index_of_min = np.where(combined_q_loss == min_loss)[0][0]
-            action = actions[index_of_min] 
+            # combined_q_loss = np.array(critic_1_losses[1:]) + np.array(critic_2_losses[1:])
+            # min_loss = np.amin(combined_q_loss)
+            # min_combined_losses.append(min_loss)
+            # index_of_min = np.where(combined_q_loss == min_loss)[0][0]
+            action = agent.get_action(state)
 
             # min_policy_losses.append(np.amin(np.array(policy_losses)))
             # min_alpha_losses.append(np.amin(np.array(alpha_losses)))

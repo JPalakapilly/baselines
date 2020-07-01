@@ -153,7 +153,7 @@ class BehavSimEnv(gym.Env):
             self.prev_energy = energy_consumptions["avg"]
             observation = np.concatenate((self.prev_energy, next_observation))
         else:
-            observation = np.concatenate((observation, next_observation))
+            observation = next_observation
 
         reward = self._get_reward(prev_observation, energy_consumptions)
         info = {}
@@ -239,15 +239,15 @@ class HourlySimEnv(BehavSimEnv):
         self.prev_ideal = []
         if(yesterday_in_state):
             if(energy_in_state):
-                self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(42,), dtype=np.float32)
+                self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(21,), dtype=np.float32)
             else:
-                self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(32,), dtype=np.float32)
+                self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(21,), dtype=np.float32)
 
         else:
             if energy_in_state:
-                self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(22,), dtype=np.float32)
+                self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(21,), dtype=np.float32)
             else:
-                self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(12,), dtype=np.float32)
+                self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(11,), dtype=np.float32)
         
         self.response = response
         self.one_day = one_day
@@ -274,8 +274,8 @@ class HourlySimEnv(BehavSimEnv):
         self.hour += 1
         self.cur_iter += 1
         point = self._points_from_action(action)
+        second_half = np.array([self.hour],dtype=np.float32)
         self.prev_points.append(point)
-        second_half = np.array([self.prev_points[-1],self.hour],dtype=np.float32)
         prev_observation = self.prices[self.day]
         if self.hour == 10:
             #assert len(self.prev_points) == 11
@@ -306,6 +306,7 @@ class HourlySimEnv(BehavSimEnv):
 
         
         info = {}
+        print(observation.shape)
         return observation, reward, done, info
   
     def reset(self):

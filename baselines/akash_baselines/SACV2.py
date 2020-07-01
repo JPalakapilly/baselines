@@ -1,5 +1,5 @@
 """
-Code from https://github.com/ajaysub110/sac-pytorch
+https://github.com/pranz24/pytorch-soft-actor-critic
 
 """
 
@@ -137,9 +137,8 @@ class SoftActorCritic(object):
         self.q_network_2_opt.step()
 
         self.policy_network_opt.zero_grad()
-        with torch.autograd.set_detect_anomaly(True):
-            policy_loss.backward()
-            self.policy_network_opt.step()
+        policy_loss.backward()
+        self.policy_network_opt.step()
 
         # alpha loss
         if ENTROPY_TUNING:

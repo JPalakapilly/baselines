@@ -19,7 +19,8 @@ def price_signal(day = 45):
     price = np.array([])
     demand = np.array([])
     #data_path = os.path.join(os.getcwd(), "baselines", "behavioral_sim", "building_data.csv")
-    with open("building_data.csv", encoding='utf8') as csvfile:
+    csv_path = os.path.dirname(os.path.realpath(__file__)) + "/building_data.csv"
+    with open(csv_path, encoding='utf8') as csvfile:
         csvreader = csv.reader(csvfile, delimiter=',')
         next(csvreader,None)
         rowcount = 0
