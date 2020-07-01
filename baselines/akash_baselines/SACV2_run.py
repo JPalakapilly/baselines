@@ -332,8 +332,8 @@ if __name__ == "__main__":
     
     print(args, end="\n\n")
 
-    # train(response_type_str = args.response_type, 
-    #     extra_train = args.extra_train, 
-    #     energy = args.energy_in_state,
-    #     day_of_week=args.day_of_week)
-    train_curve_finder(args.extra_train,args.response_type)
+    train(response_type_str = args.response_type, 
+         extra_train = args.extra_train, 
+         energy = args.energy_in_state,
+         day_of_week=args.day_of_week)
+    #train_curve_finder(args.extra_train,args.response_type)
