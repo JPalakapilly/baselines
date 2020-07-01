@@ -4,6 +4,11 @@
 
 # RAISE NOTES
 
+## Important Files
+04/08/2020 - JP
+The bulk of my code changes in this repo have been in the `baselines/behavioral_sim` folder. Some notes about that folder: `custom_envs.py` is where the gym environments for the social game simulation live. This is probably th emost important file to get to know. The other files house reward function code, person simulator code and other utility functions, but the synthesis of it all is in `custom_envs.py` so get to know that. There is also a visualizing jupyter notebook in there that follows the instructions I listed below. 
+The one other important script is `run.py` which lives in the `baselines` folder. This is where the custom environments defined in `custom_envs.py` get instantiated and used. You'll need to edit this if you want to edit how the simulation is run.
+
 ## Running the Simulation + Controller
 This is the command
 ```

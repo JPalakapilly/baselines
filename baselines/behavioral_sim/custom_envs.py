@@ -85,7 +85,7 @@ class BehavSimEnv(gym.Env):
                 price = utils.price_signal(day + 1)
                 price = np.array(price[8:18])
                 # put a floor on the prices so we don't have negative prices
-                price = np.maximum([0.01], price)
+                # price = np.maximum([0.01], price)
                 all_prices.append(price)
                 day += 1
 
@@ -180,11 +180,13 @@ class BehavSimEnv(gym.Env):
                 # get the points output from players
                 # CHANGE PLAYER RESPONSE FN HERE
                 # player_energy = np.array(player.threshold_exp_response(action))
+
                 #player_energy = player.predicted_energy_behavior(action, self.day % 5)
                 if(self.day_of_week_flag):
                     player_energy = player.get_response(action,day_of_week=self.day_of_week)
                 else:
                     player_energy = player.get_response(action,day_of_week=None)
+
                 energy_consumptions[player_name] = player_energy
                 total_consumption += player_energy
                 num_players += 1
@@ -208,7 +210,7 @@ class BehavSimEnv(gym.Env):
                 #self.prev_ideal = player_ideal_demands
                 # either distance from ideal or cost distance
                 # distance = player_reward.neg_distance_from_ideal(player_ideal_demands)
-                reward = player_reward.scaled_cost_distance(player_ideal_demands)
+                reward = player_reward.cost_distance(player_ideal_demands)
 
                 total_reward += reward
         return total_reward
@@ -317,3 +319,4 @@ class HourlySimEnv(BehavSimEnv):
         else:
             observation = np.concatenate((self.prices[self.day], np.array([0]), np.array([self.hour])))
         return observation
+

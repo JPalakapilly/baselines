@@ -245,6 +245,24 @@ class MananPerson1(Person):
 		self.max_demand = self.baseline_energy_day.max()*self.day_of_week_multiplier.max()
 		
 
+class MananPerson1(Person):
+
+	def __init__(self, baseline_energy_df, points_multiplier=.8):
+		# ignores baseline_energy_df
+		# this is just for backwards compatability
+
+		self.baseline_energy_hour = 300
+		self.day_of_week_multiplier = np.array([1.1, 1.15, 1, 0.9, 0.8])
+		self.hour_multiplier = np.array([0.8, 0.9, 1, 0.9, 0, 0.9, 1.1, 1.1, 1.0, 0.9])
+		self.AFFINITY_TO_POINTS = points_multiplier
+		self.ENERGY_STD_DEV = 5
+
+		self.baseline_energy_day = np.array(self.baseline_energy_hour * self.hour_multiplier)
+		self.total_baseline_day = np.sum(self.baseline_energy_day)*self.day_of_week_multiplier
+		
+		self.min_demand = self.baseline_energy_day.min()*self.day_of_week_multiplier.min()
+		self.max_demand = self.baseline_energy_day.max()*self.day_of_week_multiplier.max()
+		
 		self.MAX_DIFFERENTIAL = 20
 	
 	def redistributed_energy(self, points, day_num):
@@ -284,3 +302,4 @@ class MananPerson1(Person):
 			means[i] = lesser + 0.8 * (greater - lesser)
 		sample = np.random.normal(means, self.ENERGY_STD_DEV)
 		return np.maximum(np.zeros(sample.shape), sample)
+
