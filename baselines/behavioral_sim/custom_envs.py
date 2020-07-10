@@ -181,7 +181,7 @@ class BehavSimEnv(gym.Env):
                 # CHANGE PLAYER RESPONSE FN HERE
                 # player_energy = np.array(player.threshold_exp_response(action))
 
-                #player_energy = player.predicted_energy_behavior(action, self.day % 5)
+                # player_energy = player.predicted_energy_behavior(action, self.day % 5)
                 if(self.day_of_week_flag):
                     player_energy = player.get_response(action,day_of_week=self.day_of_week)
                 else:
@@ -196,6 +196,7 @@ class BehavSimEnv(gym.Env):
 
     def _get_reward(self, prev_observation, energy_consumptions):
         total_reward = 0
+
         for player_name in energy_consumptions:
             if player_name != "avg":
                 # get the points output from players
@@ -205,6 +206,44 @@ class BehavSimEnv(gym.Env):
                 player_min_demand = player.get_min_demand()
                 player_max_demand = player.get_max_demand()
                 player_energy = energy_consumptions[player_name]
+                player_reward = Reward(player_energy, prev_observation, player_min_demand, player_max_demand)
+                player_ideal_demands = player_reward.ideal_use_calculation()
+                #self.prev_ideal = player_ideal_demands
+                # either distance from ideal or cost distance
+                # distance = player_reward.neg_distance_from_ideal(player_ideal_demands)
+                reward = player_reward.cost_distance(player_ideal_demands)
+
+                total_reward += reward
+        return total_reward
+
+    def get_reward_planning_model(self, prev_observation, energy_consumptions):
+        """
+        This function is meant to generate a reward when we have one agent handling the whole office 
+        so, the planning model produces one energy consumption estimate per the whole office, I guess
+        and we then paste that onto each person.
+
+        prev_observation: grid prices from yesterday, 10-dim vector
+        energy_consumption: energy consumption predicted from the planning model
+
+        In the future, this function can be modified to only calculate the reward from a single person, instead of looping over the whole set. 
+
+        """
+
+
+        total_reward = 0
+
+        ###### potential hack alert: changing a dictionary based on players' energy to a dictionary based on their names
+        
+        player_names = self.player_dict.keys()
+        for player_name in player_names:
+            if player_name != "avg":
+                # get the points output from players
+                player = self.player_dict[player_name]
+
+                # get the reward from the player's output
+                player_min_demand = player.get_min_demand()
+                player_max_demand = player.get_max_demand()
+                player_energy = energy_consumptions
                 player_reward = Reward(player_energy, prev_observation, player_min_demand, player_max_demand)
                 player_ideal_demands = player_reward.ideal_use_calculation()
                 #self.prev_ideal = player_ideal_demands

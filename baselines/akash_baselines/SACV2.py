@@ -15,6 +15,8 @@ from torch.distributions import Normal
 import torch.distributions as tdist
 import torch.optim as opt
 
+import copy
+
 import sys
 sys.path.append("..")
 
@@ -68,6 +70,7 @@ class SoftActorCritic(object):
             self.alpha_optim = opt.Adam([self.log_alpha], lr=LR)
                 
         self.replay_memory = memory
+        self.planning_replay_memory = copy.deepcopy(memory)
 
     def get_action(self, s):
         state = torch.FloatTensor(s).to(device).unsqueeze(0)
@@ -93,10 +96,16 @@ class SoftActorCritic(object):
                     q1_loss, q2_loss, policy_loss, alpha_loss = self.update_params(batch_size)
             return ((q1_loss, q2_loss, policy_loss, alpha_loss), num_iters)
         
-    def update_params(self, batch_size):
+    def update_params(self, batch_size, memory_type = "replay"):
         
-        states, actions, rewards, next_states, ndones = self.replay_memory.sample(batch_size)
-        
+
+        if memory_type == "replay":
+            states, actions, rewards, next_states, ndones = self.replay_memory.sample(batch_size)
+        elif memory_type == "planning":
+            states, actions, rewards, next_states, ndones = self.planning_replay_memory.sample(batch_size)
+        else:
+            raise ValueError("wrong memory choice")
+            
         # make sure all are torch tensors
         states = torch.FloatTensor(states).to(device)
         actions = torch.FloatTensor(actions).to(device)
@@ -109,7 +118,7 @@ class SoftActorCritic(object):
             next_action, next_log_pi,_ = self.policy_network.sample_action(next_states, EPSILON, MIN_LOG, MAX_LOG)
             next_target_q1 = self.target_q_network_1(next_states,next_action)
             next_target_q2 = self.target_q_network_2(next_states,next_action)
-            next_target_q = torch.min(next_target_q1,next_target_q2) - self.alpha*next_log_pi
+            next_target_q = torch.min(next_target_q1,next_target_q2) - self.alpha * next_log_pi
             next_q = rewards + GAMMA*next_target_q
 
         # compute losses
