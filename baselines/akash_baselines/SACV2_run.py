@@ -16,6 +16,7 @@ from keras.layers import LSTM
 import tensorflow as tf
 import pickle
 
+
 """
 My rough code to train and experiment with SACV2, I pretty much just call the train function below
 
@@ -34,6 +35,79 @@ def moving_average(a, n=3) :
     ret = np.cumsum(a, dtype=float)
     ret[n:] = ret[n:] - ret[:-n]
     return ret[n - 1:] / n
+
+def load_model_from_disk(file_name = "GPyOpt_planning_model"):
+    json_file = open(file_name + ".json", 'r')
+    loaded_model_json = json_file.read()
+    json_file.close()
+    loaded_model = tf.keras.models.model_from_json(loaded_model_json)
+    # load weights into new model
+    loaded_model.load_weights(file_name + ".h5")
+    print("Loaded model from disk")
+
+    loaded_model.compile(loss="mse", optimizer="adam")
+    return loaded_model
+
+def train_planning_model(
+        energy_today, 
+        action, 
+        day_of_week, 
+        loaded_model, 
+        filename_to_save = "GPyOpt_planning_model"
+    ):
+        
+    ## load the minMaxScalers
+    with open ("scaler_X.pickle", "rb") as input_file:
+        scaler_X = pickle.load(input_file) 
+    with open ("scaler_y.pickle", "rb") as input_file:
+        scaler_y = pickle.load(input_file) 
+
+    ## prepare the data
+
+    d_X = pd.DataFrame(data = { "action" : action, "dow" : day_of_week } )
+    scaled_X = scaler_X.transform(d_X)
+    sxr = scaled_X.reshape((scaled_X.shape[0], 1, scaled_X.shape[1])) 
+    
+    d_y = pd.DataFrame(data = {"energy" : energy_today})
+    scaled_y = scaler_y.transform(d_y)
+    
+    loaded_model.fit(
+            sxr,    ## these all need to be changed if the GPyOpt evaluates differently
+            scaled_y,
+            epochs=100,
+            batch_size=10,
+            validation_split=0.0,
+            verbose=0,
+        )
+    
+    model_json = loaded_model.to_json()
+    with open(filename_to_save + ".json", "w") as json_file:
+        json_file.write(model_json)
+    # serialize weights to HDF5
+    loaded_model.save_weights(filename_to_save + ".h5")
+    print("Saved model to disk")
+    
+    return
+
+def planning_prediction(action, day_of_week, loaded_model):
+
+    ## load the minMaxScalers
+    with open ("scaler_X.pickle", "rb") as input_file:
+        scaler_X = pickle.load(input_file) 
+    with open ("scaler_y.pickle", "rb") as input_file:
+        scaler_y = pickle.load(input_file) 
+
+    ## prepare the data
+
+    d_X = pd.DataFrame(data = { "action"  : action, "dow" : day_of_week } )
+    scaled_X = scaler_X.transform(d_X)
+    sxr = scaled_X.reshape((scaled_X.shape[0], 1, scaled_X.shape[1])) 
+
+    preds = loaded_model.predict(sxr)
+
+    inv_preds = scaler_y.inverse_transform(preds)  
+
+    return np.squeeze(inv_preds)
 
 def series_to_supervised(data,
                          n_in,
@@ -121,7 +195,7 @@ def series_to_supervised(data,
     else:
         return agg, _
 
-def planning_prediction(action, day_of_week):
+def planning_prediction(action, day_of_week): # player name
 
 
     ## load the minMaxScalers
@@ -165,16 +239,22 @@ def planning_prediction(action, day_of_week):
 def train(response_type_str, 
     extra_train, 
     planning_iterations,
+    one_day = False, 
     energy=True, 
     day_of_week=True, 
     planning_model = False,
+    train_planning_model_with_new_data = False,
     ):
     """
     Args: 
         Response_type_str = 'theshold_exp' or 'sin' or 'mixed' or 'linear'
         Extra_Train = Number of iterations to "overtrain"
+        planning_iterations = number of times to query the planning model
+        One_day: Whether to train from a single day's price signal 
         Energy: Whether or not to include previous day energy in the state
         Day_of_Week: Whether or not to include day_of_week multiplier
+        planning_model: whether or not to use the planning model
+        train_planning_model_with_new_data= whether to train the planning model
     
     Summary:
         This code 'simulates' a run of SACV2 training and acting over 30 days (takes a step each day)
@@ -182,19 +262,19 @@ def train(response_type_str,
     """
     if(response_type_str == 'threshold_exp'):
         #env = HourlySimEnv(response='t', one_day=True, energy_in_state=False)
-        env2 = BehavSimEnv(response='t', one_day=False, energy_in_state=energy, yesterday_in_state=False,
+        env2 = BehavSimEnv(response='t', one_day = one_day, energy_in_state=energy, yesterday_in_state=False,
                             day_of_week = day_of_week)
     elif(response_type_str == 'sin'):
         #env = HourlySimEnv(response='s',one_day=True, energy_in_state=False)
-        env2 = BehavSimEnv(response='s', one_day=False, energy_in_state=energy, yesterday_in_state=False,
+        env2 = BehavSimEnv(response='s', one_day=one_day, energy_in_state=energy, yesterday_in_state=False,
                             day_of_week = day_of_week)
     elif(response_type_str == 'mixed'):
         #env = HourlySimEnv(response='s',one_day=True, energy_in_state=False)
-        env2 = BehavSimEnv(response='m', one_day=False, energy_in_state=energy, yesterday_in_state=False,
+        env2 = BehavSimEnv(response='m', one_day=one_day, energy_in_state=energy, yesterday_in_state=False,
                             day_of_week = day_of_week)
     elif(response_type_str == 'linear'):
         #env = HourlySimEnv(response='l',one_day=True, energy_in_state=False)
-        env2 = BehavSimEnv(response='l', one_day=False, energy_in_state=energy,yesterday_in_state=False,
+        env2 = BehavSimEnv(response='l', one_day=one_day, energy_in_state=energy,yesterday_in_state=False,
                             day_of_week = day_of_week)
     
     else:
@@ -224,6 +304,8 @@ def train(response_type_str,
 
     agent = SoftActorCritic(env.observation_space, env.action_space, memory)
 
+    reward_planning = []
+    
     # Actions 2 save and energy_usage for data_generation
     # actions_2_save = []
     # energy_usage = []
@@ -260,7 +342,7 @@ def train(response_type_str,
                 actions = []
                 for extra_step in range(extra_train):
                     print("--"*10)
-                    print(" Extra Train " + str(extra_train))
+                    print(" Extra Train " + str(extra_step))
                     q1_prev_loss = critic_1_losses[-1]
                     q2_prev_loss = critic_2_losses[-1]
                     policy_loss = policy_losses[-1]
@@ -277,12 +359,20 @@ def train(response_type_str,
                     critic_2_losses.append(critic_2_loss)
                     policy_losses.append(policy_loss)
                     alpha_losses.append(alpha_loss)
-                    # num_iters_list.append(num_iters)
-                    # actions.append(agent.get_action(state))
 
                 energy_yesterday = np.copy(next_state[:10])
 
                 if planning_model:
+                    
+                    ## load model from disk now   
+                    if train_planning_model_with_new_data:
+                        if (env.day==31):
+                            loaded_model = load_model_from_disk("GPyOpt_planning_model")
+                        else:
+                            loaded_model = load_model_from_disk("GPyOpt_planning_model_training")
+                    else: 
+                        loaded_model = load_model_from_disk("GPyOpt_planning_model")
+            
                     for planning_step in range(planning_iterations):
                         print("--"*10)
                         print(" planning step " + str(planning_step))
@@ -299,7 +389,7 @@ def train(response_type_str,
                         state = np.concatenate((energy_yesterday, grid_prices_today))
                         action = agent.get_action(state)
                      
-                        planned_energy_consumption = planning_prediction(action, day_of_week)
+                        planned_energy_consumption = planning_prediction(action, day_of_week, loaded_model)
                         
                         # will define next state as [energy, grid prices tomorrow]
 
@@ -308,9 +398,11 @@ def train(response_type_str,
                         done = True
 
                         agent.planning_replay_memory.push((state, action, reward, next_state, done))
-
+                        
                         return_update = agent.update_params(batch_size, memory_type = "planning")
 
+#                         IPython.embed()
+                        
                         print(return_update)
                         print("--"*10)
                         critic_1_loss = return_update[0]
@@ -322,6 +414,7 @@ def train(response_type_str,
                         critic_2_losses.append(critic_2_loss)
                         policy_losses.append(policy_loss)
                         alpha_losses.append(alpha_loss)
+                        reward_planning.append(reward)
                         # num_iters_list.append(num_iters)
                         # actions.append(agent.get_action(state))
             
@@ -340,53 +433,32 @@ def train(response_type_str,
 
             memory.push((state, action, reward, next_state, done))
             
-            #useless_next_state, reward2, useless_done, useless_info = env2.step(action)
-
+            # train the planning model 
+            energy_today = np.copy(next_state[:10])
+                        
+            # if training the planning model is the flag that we'll change, then 
+            # change over to "planning_model_training" and train it 
+            
+            if train_planning_model_with_new_data:
+                if env.day == 31:
+                    loaded_model = load_model_from_disk("GPyOpt_planning_model_training")
+                    
+                train_planning_model(    
+                    energy_today = energy_today, 
+                    action = action, 
+                    day_of_week = day_of_week, 
+                    loaded_model = loaded_model
+                )
+            
             state = np.copy(next_state)
-
-            #old code for saving data samples
-            # actions_2_save.append(action[0])
 
             if(done):
                 rewards.append(reward)
-                #rewards2.append(reward2)
-
-                #Old code for datageneration
-                # env_usage = env._simulate_humans(state, action)["avg"]
-                # for energy_i in env_usage:
-                #     energy_usage.append(energy_i)
-            
-            #Old code when rewards where not fixed
-            #rewards = [r[0] if r is np.ndarray else r for r in rewards]
-            #rewards2 = [r[0] if r is np.ndarray else r for r in rewards2]
             print("--------" * 10)
     
-    # plt.figure()
-    # plt.plot(rewards, label='reward')
-    # plt.plot(moving_average(rewards),label='Moving Avg')
-    # plt.title("Rewards (H2H " + response_type_str + '| Total = ' + str(sum(rewards)), pad = 20.0)
-    # plt.legend()
-    # plt.xlabel("Day Number")
-    # plt.ylabel("Reward")
-    # plt.savefig(response_type_str +'_energy=' + str(energy) +'_training' + '_extratrain_' + str(extra_train) + '.png')
+    return rewards, critic_1_losses, critic_2_losses, policy_losses, alpha_losses, reward_planning
 
-    # # plt.figure()
-    # # plt.plot(rewards2, label='true reward')
-    # # plt.plot(moving_average(rewards2),label='Moving Avg')
-    # # plt.title("Daily Response (Trained on One_Day " + response_type_str + '| Total = ' + str(sum(rewards2)), pad = 20.0)
-    # # plt.legend()
-    # # plt.xlabel("Day Number")
-    # # plt.ylabel("Reward")
-    # # plt.savefig(response_type_str + '_results' + '_extratrain_' + str(extra_train) + '.png')
 
-    # plt.figure()
-    # plt.plot(min_combined_losses)
-    # plt.xlabel('Iteration ')
-    # plt.ylabel("Combined Q1+Q2 loss")
-    # plt.title("Combined Critic Loss at each hour", pad = 20.0)
-    # plt.savefig(response_type_str + '_energy=' + str(energy) + '_min_q_loss' + '_extratrain_' + str(extra_train) + '.png')
-
-    return rewards
 
 
     #Old code for generating datasamples
