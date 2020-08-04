@@ -4,7 +4,7 @@ import numpy as np
 from behavioral_sim import utils
 from behavioral_sim.agents import *
 from behavioral_sim.reward import Reward
-
+import IPython
 
 class BehavSimEnv(gym.Env):
     """Custom Environment that follows gym interface"""
@@ -72,11 +72,13 @@ class BehavSimEnv(gym.Env):
         if one_day:
             # if repeating the same day, then use a random day. 
             # SET FIXED DAY HERE
-            day = 184
+            day = 84
             price = utils.price_signal(day + 1)
             price = np.array(price[8:18])
-            price = np.maximum([0.01], price)
-            naive_reward = Reward([], price, 35, 300)
+
+            ### LJS 7/27: changed from np.max([.01], price) to np.abs of price for maintaining a varying price 
+            price = np.absolute(price)
+
             for i in range(365):
                 all_prices.append(price)
         else:
@@ -104,7 +106,11 @@ class BehavSimEnv(gym.Env):
 
         # I dont trust the data at all
         # helper comment         [0, 1, 2, 3, 4, 5,  6,  7,  8,   9,  10,  11,  12,  13,  14,  15,  16,  17,  18, 19, 20,  21, 22, 23]
-        sample_energy = np.array([0, 0, 0, 0, 0, 0, 20, 50, 80, 120, 200, 210, 180, 250, 380, 310, 220, 140, 100, 50, 20,  10,  0,  0])
+        # sample_energy = np.array([0, 0, 0, 0, 0, 0, 20, 50, 80, 120, 200, 210, 180, 250, 380, 310, 220, 140, 100, 50, 20,  10,  0,  0])
+
+        sample_energy = np.array([ 0.28,  11.9,   16.34,  16.8,  17.43,  16.15,  16.23,  15.88,  15.09,  35.6,
+                                123.5,  148.7,  158.49, 149.13, 159.32, 157.62, 158.8,  156.49, 147.04,  70.76,
+                                42.87,  23.13,  22.52,  16.8])
 
         #only grab working hours (8am - 6pm)
         working_hour_energy = sample_energy[8:18]
@@ -146,6 +152,9 @@ class BehavSimEnv(gym.Env):
             done = False
         points = self._points_from_action(action)
         energy_consumptions = self._simulate_humans(prev_observation, points)
+
+        # add a step in getting other types of data 
+
         if(self.yesterday_in_state):
             observation = np.concatenate((prev_observation, self.prev_ideal))
         if self.energy_in_state:
@@ -183,9 +192,10 @@ class BehavSimEnv(gym.Env):
 
                 # player_energy = player.predicted_energy_behavior(action, self.day % 5)
                 if(self.day_of_week_flag):
-                    player_energy = player.get_response(action,day_of_week=self.day_of_week)
+                    player_energy = player.get_response(action, day_of_week=self.day_of_week)
+                    # here, feed in other types of info
                 else:
-                    player_energy = player.get_response(action,day_of_week=None)
+                    player_energy = player.get_response(action, day_of_week=None)
 
                 energy_consumptions[player_name] = player_energy
                 total_consumption += player_energy
@@ -211,7 +221,8 @@ class BehavSimEnv(gym.Env):
                 #self.prev_ideal = player_ideal_demands
                 # either distance from ideal or cost distance
                 # distance = player_reward.neg_distance_from_ideal(player_ideal_demands)
-                reward = player_reward.cost_distance(player_ideal_demands)
+
+                reward = player_reward.scaled_cost_distance(player_ideal_demands)
 
                 total_reward += reward
         return total_reward
@@ -249,9 +260,13 @@ class BehavSimEnv(gym.Env):
                 #self.prev_ideal = player_ideal_demands
                 # either distance from ideal or cost distance
                 # distance = player_reward.neg_distance_from_ideal(player_ideal_demands)
-                reward = player_reward.cost_distance(player_ideal_demands)
+
+                # scaled cost distance or cost distance? 
+                print("planning model reward")
+                reward = player_reward.scaled_cost_distance(player_ideal_demands)
 
                 total_reward += reward
+
         return total_reward
   
     def reset(self):

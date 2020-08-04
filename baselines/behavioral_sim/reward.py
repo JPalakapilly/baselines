@@ -1,6 +1,7 @@
 import cvxpy as cvx
 import osqp
 import numpy as np
+import IPython
 
 #### file to calculate the rewards. Meant to be modular: 
 #### class Rewards should have several different functions by Dec 2019
@@ -8,6 +9,7 @@ import numpy as np
 
 class Reward():
 	def __init__(self, energy_use, prices, min_demand, max_demand):
+
 		"""
 		Args: 
 			energy_use: list returned by Person class signifying energy use 
@@ -74,6 +76,8 @@ class Reward():
 		returns: 
 			a cost-based distance metric, negated
 		"""
+
+		IPython.embed()
 		current_cost = np.dot(self.prices, self.energy_use)
 		ideal_cost = np.dot(self.prices, ideal_demands)
 
@@ -109,7 +113,6 @@ class Reward():
 		returns: 
 			a cost-based distance metric normalized by total ideal cost
 		"""
-		
 		current_cost = np.dot(self.prices, self.energy_use)
 		ideal_cost = np.dot(self.prices, ideal_demands)
 
